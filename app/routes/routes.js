@@ -1,6 +1,9 @@
 const jwt = require("jsonwebtoken");
 const test = require('./test/test')
 const users = require('./users/user')
+const countries = require('./countries/countries')
+const states = require('./states/states')
+const cities = require('./cities/cities')
 const api = '/api'
 
 
