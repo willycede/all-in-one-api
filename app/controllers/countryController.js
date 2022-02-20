@@ -3,6 +3,7 @@ const response = require('../config/response');
 const utils = require('../utils/globalFunctions')
 
 const getCountries = async(req,res)=>{
+    console.log("HOLAAA")
     try {
         const countries = await countryModel.getCountries({}) 
         return response.success(req,res,countries,200)

@@ -4,6 +4,9 @@ const users = require('./users/user')
 const countries = require('./countries/countries')
 const states = require('./states/states')
 const cities = require('./cities/cities')
+const companies = require('./companies/companies')
+const categories = require('./categories/categories')
+const products = require('./products/products')
 const api = '/api'
 
 
@@ -12,9 +15,12 @@ require('dotenv').config()
 const routes = function (server){
     server.use(`${api}/test`,verifyToken,test);
     server.use(`${api}/users`,users);
-    server.use(`${api}/countries`,verifyToken,countries);
-    server.use(`${api}/states`,verifyToken,states);
-    server.use(`${api}/cities`,verifyToken,cities);
+    server.use(`${api}/countries`,countries);
+    server.use(`${api}/states`,states);
+    server.use(`${api}/cities`,cities);
+    server.use(`${api}/companies`,companies);
+    server.use(`${api}/categories`,categories);
+    server.use(`${api}/products`,products);
 }
 
 // Authorization: Bearer <token>

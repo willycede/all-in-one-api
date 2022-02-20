@@ -11,8 +11,6 @@ exports.up = function(knex) {
         t.string('currency_symbol', 255).nullable();
         t.string('tld', 255).nullable();
         t.string('native', 255).nullable();
-        t.string('tld', 255).nullable();
-        t.string('native', 255).nullable();
         t.string('region', 255).nullable();
         t.string('subregion', 255).nullable();
         t.string('timezones', 255).nullable();

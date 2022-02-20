@@ -2,7 +2,6 @@
 exports.up = function(knex) {
     return knex.schema.createTable('users', function(t) {
         t.increments('id').unsigned().primary();
-        t.integer('rol_id').unsigned().notNull();
         t.integer('city_id').unsigned().notNull();
         t.integer('company_id').nullable();
         t.integer('user_type_id').notNull();//can be 1 to users that will by using sistem, 2 for administrative users
@@ -21,7 +20,6 @@ exports.up = function(knex) {
         t.timestamp('created_at').defaultTo(knex.fn.now());
         t.timestamp('updated_at').defaultTo(knex.fn.now());
         t.timestamp('deleted_at').nullable(knex.fn.now()); 
-        t.foreign('rol_id').references('roles.id')
         t.foreign('city_id').references('cities.id')
     });
 };

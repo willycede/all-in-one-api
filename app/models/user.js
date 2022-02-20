@@ -3,11 +3,10 @@ const constants = require("../constants/constants")
 
 const getUserByEmail = async ({email}) => {
     return await knex('users')
-    .join('roles', 'roles.id', 'users.rol_id')
+    .join('cities', 'cities.id', 'users.city_id')
     .select(
       'users.id',
-      'users.company_id',
-      'users.rol_id',
+      'users.city_id',
       'users.first_name',
       'users.second_name',
       'users.first_last_name',
@@ -16,14 +15,12 @@ const getUserByEmail = async ({email}) => {
       'users.password',
       'users.access_token',
       'users.cellphone_number',
-      'users.secondary_cellphone_number',
       'users.address',
       'users.identification_number',
       'users.status',
       'users.token_expires_in',
-      'users.location_id',
+      'users.company_id',
       'users.status',
-      'roles.name as rol_name'
     )  
     .where({ 'users.email':email, 'users.status':constants.STATUS_ACTIVE })
     .first();
@@ -31,11 +28,10 @@ const getUserByEmail = async ({email}) => {
 
 const getUsersByCompany = async ({company_id}) => {
   return await knex('users')
-  .join('roles', 'roles.id', 'users.rol_id')
+  .join('cities', 'cities.id', 'users.city_id')
   .select(
       'users.id',
       'users.company_id',
-      'users.rol_id',
       'users.first_name',
       'users.second_name',
       'users.first_last_name',
@@ -44,14 +40,12 @@ const getUsersByCompany = async ({company_id}) => {
       'users.password',
       'users.access_token',
       'users.cellphone_number',
-      'users.secondary_cellphone_number',
       'users.address',
       'users.identification_number',
       'users.status',
       'users.token_expires_in',
-      'users.location_id',
+      'users.city_id',
       'users.status',
-      'roles.name as rol_name'
   )  
   .where({ 'users.company_id' : company_id,  'users.status':constants.STATUS_ACTIVE })
 };
