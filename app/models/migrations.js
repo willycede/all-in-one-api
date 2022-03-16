@@ -4,7 +4,7 @@ const db  = require("../db/knex");
 const testDB = async () => {
     return db
       .select()
-      .from('migrations')
+      .from('users')
       .then(()=>{
           console.log("Database connected successfully")
       })
