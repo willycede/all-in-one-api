@@ -148,6 +148,6 @@ const createUserLogic = async (
       token_expires_in: user.access_token,
       token_expires_in: user.token_expires_in,
       status: user.status,
-    }
+    };
 }
 module.exports = { getUserByEmail, createUser,getUsersByCompany,getUserById,updateUser,deleteUser, validateUserData, createUserLogic };

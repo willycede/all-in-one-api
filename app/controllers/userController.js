@@ -17,9 +17,8 @@ const createUser = async (req,res) => {
       isAdmin,
     });
     if(Object.entries(validatedData.validationObject).length>0 || validatedData.errorMessage ){
-      return response.error(req,res,{message: validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
+      return response.error(req,res,{message: validatedData.errorMessage, validationObject: validatedData.validationObject}, 422);
     }
-
     const createdUser = await userModel.createUserLogic(
       {
         body,
