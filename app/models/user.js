@@ -3,24 +3,19 @@ const constants = require("../constants/constants")
 
 const getUserByEmail = async ({email}) => {
     return await knex('users')
-    .join('cities', 'cities.id', 'users.city_id')
     .select(
-      'users.id',
-      'users.city_id',
-      'users.first_name',
-      'users.second_name',
-      'users.first_last_name',
-      'users.second_last_name',
+      'users.id_users',
+      'users.name_user',
+      'users.last_name_user',
+      'users.identification_number',
       'users.email',
       'users.password',
+      'users.email',
+      'users.password',
+      'users.status',
+      'users.recovery_pass',
       'users.access_token',
-      'users.cellphone_number',
-      'users.address',
-      'users.identification_number',
-      'users.status',
       'users.token_expires_in',
-      'users.company_id',
-      'users.status',
     )  
     .where({ 'users.email':email, 'users.status':constants.STATUS_ACTIVE })
     .first();
@@ -79,4 +74,36 @@ const deleteUser= async({id}, trx) =>{
    });
   return ;
 }
-module.exports = { getUserByEmail, createUser,getUsersByCompany,getUserById,updateUser,deleteUser };
+
+const validateUserLoginData = async ({email, password, isAdmin}) => {
+  let errorMessage = '';
+  let validationObject = {};
+    if(!email){
+      validationObject.email = "El email es requerido y no puede estar vacio o ser nulo.";
+    }
+    if(!password){
+      validationObject.password = "La contraseña es requerida y no puede estar vacia";
+    }
+    if(!utils.validarEmail(email)){
+      validationObject.email = "El email ingresado no posee un formato valido.";
+    }
+    //Se procede a traer el usuario basado en el email, para luego comparar sus contraseñas
+    const user = await getUserByEmail({email});
+    if(!user){
+      errorMessage=`El usuario con el email ingresado no existe en nuestros registros`;
+    }
+    if(!bcrypt.compareSync(password, user.password)){
+      errorMessage ="Email o contraseña incorrectos."
+    }
+    if(isAdmin) {
+      const existsUserInAdminTable = await getCompanyUserByUserId({id_users: user.id_users});
+      if(!existsUserInAdminTable){
+        errorMessage=`El usuario no posee una cuenta asociada a alguna empresa.`;
+      }
+    }
+    return {
+      validationObject,
+      errorMessage
+    };
+}
+module.exports = { getUserByEmail, createUser,getUsersByCompany,getUserById,updateUser,deleteUser, validateUserLoginData};
