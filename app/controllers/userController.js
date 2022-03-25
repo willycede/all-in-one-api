@@ -5,7 +5,7 @@ const moment = require('moment');
 const response = require('../config/response');
 const utils = require('../utils/globalFunctions')
 const constants = require("../constants/constants");
-const { getCompanyUserByUserId } = require("../models/company_users");
+const { getUserByCompanyAndEmail } = require("../models/company_users");
 require('dotenv').config()
 const getUserByEmail = async ({email}) => {
     
@@ -119,7 +119,12 @@ const login = async (req,res) => {
     if(Object.entries(validatedData.validationObject).length>0){
       return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
     }
-    const user =
+    const user = getUserByEmail({
+      email
+    });
+    if (!user) {
+      return response.error(req,res,{message:'No existe un usuario con el email ingresado'}, 422)
+    }
     user.id_users = user.id_users;
     const token= jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
     const timestamp = moment().add(720, 'days').unix();
@@ -140,11 +145,18 @@ const loginAdmin = async (req,res) => {
     const body = req.body;
     const email = body.email;
     const password= body.password;
-    userModel.validateUserLoginData({email, password, isAdmin: true});
+    const company_id = body.company_id;
+    userModel.Z({email, password, isAdmin: true});
     if(Object.entries(validatedData.validationObject).length>0){
       return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
     }
-    
+    const user = userModel.getUserByCompanyAndEmail({
+      email,
+      company_id
+    });
+    if (!user) {
+      return response.error(req,res,{message:'No existe un usuario con el email ingresado'}, 422)
+    }
     user.id_users = user.id_users;
     const token= jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
     const timestamp = moment().add(720, 'days').unix();

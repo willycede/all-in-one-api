@@ -1,8 +1,12 @@
 const knex  = require("../db/knex");
-const constants = require("../constants/constants")
+const constants = require("../constants/constants");
+const { validarEmail } = require("../utils/globalFunctions");
+const bcrypt = require('bcryptjs');
 
 const getUserByEmail = async ({email}) => {
     return await knex('users')
+    .join('company_users', 'company_users.id_users', 'users.id_users')
+    .join('user_rol', 'user_rol.id_company_user', 'company_users.id_company_user')
     .select(
       'users.id_users',
       'users.name_user',
@@ -10,39 +14,47 @@ const getUserByEmail = async ({email}) => {
       'users.identification_number',
       'users.email',
       'users.password',
+      'users.status',
+      'users.recovery_pass',
+      'users.access_token',
+      'users.token_expires_in',
+      'user_rol.id_rol',
+      'user_rol.id_user_rol',
+      'company_users.id_company_user'
+    )  
+    .where({ 'users.email':email,
+      'users.status':constants.STATUS_ACTIVE,
+      'user_rol.id_rol': 2,
+      'company_users.id_company': null
+    })
+    .first();
+  };
+
+const getUserByCompanyAndEmail = async ({company_id, email}) => {
+  return await knex('users')
+    .join('company_users', 'company_users.id_users', 'users.id_users')
+    .join('user_rol', 'user_rol.id_company_user', 'company_users.id_company_user')
+    .select(
+      'users.id_users',
+      'users.name_user',
+      'users.last_name_user',
+      'users.identification_number',
       'users.email',
       'users.password',
       'users.status',
       'users.recovery_pass',
       'users.access_token',
       'users.token_expires_in',
+      'user_rol.id_rol',
+      'user_rol.id_user_rol',
+      'company_users.id_company_user'
     )  
-    .where({ 'users.email':email, 'users.status':constants.STATUS_ACTIVE })
+    .where({ 'users.email':email,
+      'company_users.id_company': company_id,
+      'users.status':constants.STATUS_ACTIVE,
+      'user_rol.id_rol': 2
+    })
     .first();
-  };
-
-const getUsersByCompany = async ({company_id}) => {
-  return await knex('users')
-  .join('cities', 'cities.id', 'users.city_id')
-  .select(
-      'users.id',
-      'users.company_id',
-      'users.first_name',
-      'users.second_name',
-      'users.first_last_name',
-      'users.second_last_name',
-      'users.email',
-      'users.password',
-      'users.access_token',
-      'users.cellphone_number',
-      'users.address',
-      'users.identification_number',
-      'users.status',
-      'users.token_expires_in',
-      'users.city_id',
-      'users.status',
-  )  
-  .where({ 'users.company_id' : company_id,  'users.status':constants.STATUS_ACTIVE })
 };
 
 const getUserById = async ({id}) => {
@@ -75,7 +87,7 @@ const deleteUser= async({id}, trx) =>{
   return ;
 }
 
-const validateUserLoginData = async ({email, password, isAdmin}) => {
+const validateUserLoginData = async ({email, password, isAdmin, company_id}) => {
   let errorMessage = '';
   let validationObject = {};
     if(!email){
@@ -84,26 +96,25 @@ const validateUserLoginData = async ({email, password, isAdmin}) => {
     if(!password){
       validationObject.password = "La contraseña es requerida y no puede estar vacia";
     }
-    if(!utils.validarEmail(email)){
+    if(!validarEmail(email)){
       validationObject.email = "El email ingresado no posee un formato valido.";
     }
-    //Se procede a traer el usuario basado en el email, para luego comparar sus contraseñas
-    const user = await getUserByEmail({email});
+    let user;
+    if(isAdmin) {
+      user = await getUserByCompanyAndEmail({company_id ,email});
+    }else {
+      user = await getUserByEmail({email})
+    }
     if(!user){
       errorMessage=`El usuario con el email ingresado no existe en nuestros registros`;
     }
     if(!bcrypt.compareSync(password, user.password)){
       errorMessage ="Email o contraseña incorrectos."
     }
-    if(isAdmin) {
-      const existsUserInAdminTable = await getCompanyUserByUserId({id_users: user.id_users});
-      if(!existsUserInAdminTable){
-        errorMessage=`El usuario no posee una cuenta asociada a alguna empresa.`;
-      }
-    }
+  
     return {
       validationObject,
       errorMessage
     };
 }
-module.exports = { getUserByEmail, createUser,getUsersByCompany,getUserById,updateUser,deleteUser, validateUserLoginData};
+module.exports = { getUserByEmail, createUser,getUserByCompanyAndEmail,getUserById,updateUser,deleteUser, validateUserLoginData};
