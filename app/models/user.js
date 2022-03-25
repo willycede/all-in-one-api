@@ -143,14 +143,6 @@ const createUserLogic = async (
       isAdmin ? constants.ADMIN_ROL: constants.CLIENT_ROL
     );
 
-    return {
-      name_user: user.name_user,
-      last_name_user : user.last_name_user,
-      identification_number: user.identification_number,
-      email : user.email,
-      token_expires_in: user.access_token,
-      token_expires_in: user.token_expires_in,
-      status: user.status,
-    };
+    return user;
 }
 module.exports = { getUserByEmail, createUser,getUsersByCompany,getUserById,updateUser,deleteUser, validateUserData, createUserLogic };
