@@ -138,7 +138,10 @@ const createUserLogic = async (
 
     //Se debe asociar el user al rol admin o al rol client
     const userAssociateWithCompany = await createCompanyUser(body.company_id, user.id_users, constants.STATUS_ACTIVE);
-    await createUserRol(userAssociateWithCompany.id_company_user, isAdmin ? constants.ADMIN_ROL: constants.CLIENT_ROL);
+    await createUserRol(userAssociateWithCompany &&  userAssociateWithCompany.length > 0 
+      ? id_company_user: userAssociateWithCompany[0].id_company_user, 
+      isAdmin ? constants.ADMIN_ROL: constants.
+    );
 
     return {
       name_user: user.name_user,
