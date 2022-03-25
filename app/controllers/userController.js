@@ -27,7 +27,7 @@ const createUser = async (req,res) => {
     );
     return response.success(req, res, createdUser, 200);
   } catch (error) {
-    return response.error(req,res,{message:`createUserError: ${error.message}`,validationObject}, 422)
+    return response.error(req,res,{message:`createUserError: ${error.message}`}, 422)
   }
   
 };
