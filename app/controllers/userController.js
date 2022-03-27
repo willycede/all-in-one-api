@@ -119,18 +119,15 @@ const login = async (req,res) => {
     if(Object.entries(validatedData.validationObject).length>0){
       return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
     }
-    const user = getUserByEmail({
+    const user = await getUserByEmail({
       email
     });
-    if (!user) {
-      return response.error(req,res,{message:'No existe un usuario con el email ingresado'}, 422)
-    }
     user.id_users = user.id_users;
     const token= jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
     const timestamp = moment().add(720, 'days').unix();
     user.access_token= token;
     user.token_expires_in=timestamp;
-    await userModel.updateUser({user})
+    await userModel.updateUserSessionData({user})
 
     return response.success(req,res,user,200)
   } catch (error) {
@@ -146,11 +143,11 @@ const loginAdmin = async (req,res) => {
     const email = body.email;
     const password= body.password;
     const company_id = body.company_id;
-    userModel.Z({email, password, isAdmin: true});
+    const validatedData = await userModel.validateUserLoginData({email, password, isAdmin: true, company_id});
     if(Object.entries(validatedData.validationObject).length>0){
       return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
     }
-    const user = userModel.getUserByCompanyAndEmail({
+    const user = await userModel.getUserByCompanyAndEmail({
       email,
       company_id
     });
@@ -162,7 +159,7 @@ const loginAdmin = async (req,res) => {
     const timestamp = moment().add(720, 'days').unix();
     user.access_token= token;
     user.token_expires_in=timestamp;
-    await userModel.updateUser({user})
+    await userModel.updateUserSessionData({user})
 
     return response.success(req,res,user,200)
   } catch (error) {

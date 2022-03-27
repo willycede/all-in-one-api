@@ -52,14 +52,14 @@ const getUserByCompanyAndEmail = async ({company_id, email}) => {
     .where({ 'users.email':email,
       'company_users.id_company': company_id,
       'users.status':constants.STATUS_ACTIVE,
-      'user_rol.id_rol': 2
+      'user_rol.id_rol': 1
     })
     .first();
 };
 
-const getUserById = async ({id}) => {
+const getUserById = async ({id_users}) => {
   return await knex('users')
-  .where({ id, status:constants.STATUS_ACTIVE })
+  .where({ id_users, status:constants.STATUS_ACTIVE })
 };
 const createUser = async ({user}) => {
     await knex('users').insert(user)
@@ -68,14 +68,15 @@ const createUser = async ({user}) => {
     })
   };
 
-const updateUser = async ({ user }, trx) => {
-  console.log("user model update")
-  console.log(user)
-    user.updated_at=knex.fn.now()
+const updateUserSessionData = async ({ user }, trx) => {
     await (trx || knex)('users')
-    .where({ id: user.id })
-    .update(user);
-    return await getUserById({id:user.id});
+    .where({ id_users: user.id_users })
+    .update({
+      access_token: user.access_token,
+      token_expires_in: user.token_expires_in,
+      updated_at: knex.fn.now(),
+    });
+    return await getUserById({id_users:user.id_users});
 }
 const deleteUser= async({id}, trx) =>{
   await (trx || knex)('users')
@@ -90,6 +91,9 @@ const deleteUser= async({id}, trx) =>{
 const validateUserLoginData = async ({email, password, isAdmin, company_id}) => {
   let errorMessage = '';
   let validationObject = {};
+    if(!company_id) {
+      validationObject.company_id = "El id de compañoa es requerido y no puede estar vacio o ser nulo.";
+    }
     if(!email){
       validationObject.email = "El email es requerido y no puede estar vacio o ser nulo.";
     }
@@ -117,4 +121,4 @@ const validateUserLoginData = async ({email, password, isAdmin, company_id}) => 
       errorMessage
     };
 }
-module.exports = { getUserByEmail, createUser,getUserByCompanyAndEmail,getUserById,updateUser,deleteUser, validateUserLoginData};
+module.exports = { getUserByEmail, createUser,getUserByCompanyAndEmail,getUserById,updateUserSessionData,deleteUser, validateUserLoginData};
