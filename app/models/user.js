@@ -91,9 +91,6 @@ const deleteUser= async({id}, trx) =>{
 const validateUserLoginData = async ({email, password, isAdmin, company_id}) => {
   let errorMessage = '';
   let validationObject = {};
-    if(!company_id) {
-      validationObject.company_id = "El id de compañoa es requerido y no puede estar vacio o ser nulo.";
-    }
     if(!email){
       validationObject.email = "El email es requerido y no puede estar vacio o ser nulo.";
     }
@@ -105,6 +102,9 @@ const validateUserLoginData = async ({email, password, isAdmin, company_id}) => 
     }
     let user;
     if(isAdmin) {
+      if(!company_id) {
+        validationObject.company_id = "El id de compañoa es requerido y no puede estar vacio o ser nulo.";
+      }
       user = await getUserByCompanyAndEmail({company_id ,email});
     }else {
       user = await getUserByEmail({email})
