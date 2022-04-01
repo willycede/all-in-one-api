@@ -79,6 +79,16 @@ const createLocationLogic = async (location) => {
   const createdLocation = await createLocation(locationToDb);
   return createdLocation;
 }
+const updateLocationLogic = async (location, location_id) => {
+  const locationToDb = {
+    ...location,
+    status: constants.STATUS_ACTIVE,
+    id_location:location_id,
+    updateddAt: new Date(Date.now()),
+  };
+  const updatedLocation = await updateLocation(locationToDb);
+  return updatedLocation;
+}
 module.exports = {
     getLocationsByCompanyId,
     createLocation,
@@ -86,5 +96,6 @@ module.exports = {
     deleteLocation,
     validateLocationData,
     getLocationsByCompanyIdAndName,
-    createLocationLogic
+    createLocationLogic,
+    updateLocationLogic
 }
