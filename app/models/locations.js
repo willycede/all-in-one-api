@@ -5,8 +5,8 @@ const getLocationsByCompanyId = async ({company_id}) => {
     return await knex.select()
     .from('location')
     .where({
-        company_id,
-        state: constants.STATUS_ACTIVE
+        id_company: company_id,
+        status: constants.STATUS_ACTIVE
     })
     .orderBy('created_at','desc')
 };
@@ -14,13 +14,13 @@ const getLocationsByCompanyIdAndName = async ({company_id, name_location}) => {
   return await knex.select()
   .from('location')
   .where({
-      company_id,
+      id_company: company_id,
       name_location,
-      state: constants.STATUS_ACTIVE
+      status: constants.STATUS_ACTIVE
   })
   .orderBy('created_at','desc')
 };
-const createLocation = async ({location}) => {
+const createLocation = async (location) => {
     const locationId = await knex('location').insert(location)
     return await knex('location').where({
       id_location: locationId
@@ -58,10 +58,10 @@ const validateLocationData = async ({body}) => {
     validationObject.longitud = "La longitud es requerido y no puede ser vacio o nulo";
   }
   const locationDb = await getLocationsByCompanyIdAndName({
-    company_id: body.company_id,
+    company_id: body.id_company,
     name_location: body.name_location
   })
-  if(locationDb){
+  if(locationDb && locationDb.length > 0){
       errorMessage= `La localización ${body.name_location} ya existe en nuestros registros`;
   }
   return {
@@ -74,7 +74,7 @@ const createLocationLogic = async (location) => {
   const locationToDb = {
     ...location,
     status: constants.STATUS_ACTIVE,
-    createdAt: new Date(Date.now()),
+    created_at: new Date(Date.now()),
   };
   const createdLocation = await createLocation(locationToDb);
   return createdLocation;
@@ -84,7 +84,7 @@ const updateLocationLogic = async (location, location_id) => {
     ...location,
     status: constants.STATUS_ACTIVE,
     id_location:location_id,
-    updateddAt: new Date(Date.now()),
+    updated_at: new Date(Date.now()),
   };
   const updatedLocation = await updateLocation(locationToDb);
   return updatedLocation;

@@ -1,12 +1,13 @@
-const locationModel =  require("../models/locations")
+const locationModel =  require("../models/locations");
+const response = require('../config/response');
 const createLocation = async (req,res) => {
     try {
         const body = req.body;
-        const validatedData = locationModel.validateLocationData({body});
+        const validatedData = await locationModel.validateLocationData({body});
         if(Object.entries(validatedData.validationObject).length>0 || validatedData.errorMessage ){
             return response.error(req,res,{message: validatedData.errorMessage, validationObject: validatedData.validationObject}, 422);
         }
-        const createdLocation = await locationModel.createLocationLogic(location);
+        const createdLocation = await locationModel.createLocationLogic(body);
         return response.success(req, res, createdLocation, 200);
     } catch (error) {
         return response.error(req,res,{message:`createLocation: ${error.message}`},422);
@@ -15,7 +16,7 @@ const createLocation = async (req,res) => {
 }
 const getLocations = async (req,res) => {
     try {
-        const company_id = req.params.company_id;
+        const { company_id } = req.query;
         let errorMessage='';
         if(!company_id){
             errorMessage='El id de compañia no puede ser nulo o vacio';
