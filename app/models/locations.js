@@ -10,14 +10,17 @@ const getLocationsByCompanyId = async ({company_id}) => {
     })
     .orderBy('created_at','desc')
 };
-const getLocationsByCompanyIdAndName = async ({company_id, name_location}) => {
+const getLocationsByCompanyIdAndName = async ({company_id, name_location, isCreate}) => {
+  const query = {
+    id_company: company_id,
+    status: constants.STATUS_ACTIVE
+  }
+  if (isCreate) {
+    query.name_location = name_location;
+  }
   return await knex.select()
   .from('location')
-  .where({
-      id_company: company_id,
-      name_location,
-      status: constants.STATUS_ACTIVE
-  })
+  .where(query)
   .orderBy('created_at','desc')
 };
 const createLocation = async (location) => {
@@ -26,7 +29,7 @@ const createLocation = async (location) => {
       id_location: locationId
     })
 };
-const updateLocation = async ({ location }, trx) => {
+const updateLocation = async (location , trx) => {
     location.updated_at=knex.fn.now()
       await (trx || knex)('location')
       .where({ id_location: location.id_location })
@@ -42,7 +45,7 @@ const deleteLocation= async({id_location}, trx) =>{
     });
   return ;
 }
-const validateLocationData = async ({body}) => {
+const validateLocationData = async ({body, isCreate = true}) => {
   let validationObject ={};
   let errorMessage = "";
   if(!body.id_company){
@@ -59,10 +62,17 @@ const validateLocationData = async ({body}) => {
   }
   const locationDb = await getLocationsByCompanyIdAndName({
     company_id: body.id_company,
-    name_location: body.name_location
+    name_location: body.name_location,
+    isCreate
   })
   if(locationDb && locationDb.length > 0){
-      errorMessage= `La localización ${body.name_location} ya existe en nuestros registros`;
+      if (isCreate) {
+        errorMessage= `La localización ${body.name_location} ya existe en nuestros registros`;
+      }
+  }else {
+    if (!isCreate) {
+      errorMessage= `La localización ${body.name_location}  no existe en nuestros registros`;
+    }
   }
   return {
     validationObject,
@@ -87,6 +97,7 @@ const updateLocationLogic = async (location, location_id) => {
     updated_at: new Date(Date.now()),
   };
   const updatedLocation = await updateLocation(locationToDb);
+  delete updatedLocation.updated_at;
   return updatedLocation;
 }
 module.exports = {
