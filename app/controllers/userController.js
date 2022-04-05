@@ -1,7 +1,7 @@
 const userModel =  require("../models/user")
-const bcrypt = require('bcryptjs');
-
 const response = require('../config/response');
+const jwt = require("jsonwebtoken");
+const moment = require("moment");
 require('dotenv').config()
 const getUserByEmail = async ({email}) => {
     
@@ -32,33 +32,53 @@ const createUser = async (req,res) => {
   
 };
 const login = async (req,res) => {
-  let validationObject ={}
   try {
-    let errorMessage=''
     const body = req.body;
     const email = body.email;
     const password= body.password;
-    if(email == null || email==undefined || email ==''){
-      validationObject.email = "El email es requerido y no puede estar vacio o ser nulo."
+    const validatedData = await userModel.validateUserLoginData({email, password, isAdmin: false});
+    if(Object.entries(validatedData.validationObject).length>0){
+      return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
     }
-    if(password == null || password==undefined || password ==''){
-      validationObject.password = "La contraseña es requerida y no puede estar vacia"
-    }
+    const user = await userModel.getUserByEmailRolClient({
+      email
+    });
+    user.id_users = user.id_users;
+    const token= jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
+    const timestamp = moment().add(720, 'days').unix();
+    user.access_token= token;
+    user.token_expires_in=timestamp;
+    await userModel.updateUserSessionData({user})
 
-    if(errorMessage!='' || Object.entries(validationObject).length>0){
-      return response.error(req,res,{message:errorMessage, validationObject}, 422)
+    return response.success(req,res,user,200)
+  } catch (error) {
+    return response.error(req,res,{message:`LoginError: ${error.message}`}, 422)
+  }
+  
+};
+
+const loginAdmin = async (req,res) => {
+
+  try {
+    const body = req.body;
+    const email = body.email;
+    const password= body.password;
+    const company_id = body.company_id;
+    const validatedData = await userModel.validateUserLoginData({email, password, isAdmin: true, company_id});
+    if(Object.entries(validatedData.validationObject).length>0){
+      return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
     }
-    //Se procede a traer el usuario basado en el email, para luego comparar sus contraseñas
-    const user = await getUserByEmail({email})
-    if(user == null || user == undefined){
-      errorMessage=`El usuario con el email ingresado no existe en nuestros registros`
-      return response.error(req,res,{message:errorMessage, validationObject}, 422)
-    }
-    //Se compara la contraseña encryptada con la que viene
-    if(!bcrypt.compareSync(password, user.password)){
-      errorMessage ="Email o contraseña incorrectos."
-      return response.error(req,res,{message:errorMessage, validationObject}, 422)
-    }
+    const user = await userModel.getUserByCompanyAndEmail({
+      email,
+      company_id
+    });
+    user.id_users = user.id_users;
+    const token= jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
+    const timestamp = moment().add(720, 'days').unix();
+    user.access_token= token;
+    user.token_expires_in=timestamp;
+    await userModel.updateUserSessionData({user})
+
     return response.success(req,res,user,200)
   } catch (error) {
     return response.error(req,res,{message:`LoginError: ${error.message}`}, 422)
@@ -69,5 +89,6 @@ const login = async (req,res) => {
 module.exports = {  
   createUser,
   getUserByEmail,
-  login
+  login,
+  loginAdmin
 };

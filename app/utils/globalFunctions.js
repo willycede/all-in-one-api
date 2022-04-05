@@ -7,6 +7,11 @@ const formatToCurrency = (value, precision=2, separator=',')=>{
    return currency(value, {separator, precision})
 }
 
+const validarEmail = (mail) => {
+   const emailRegex = /^(([^<>()\[\]\.,;:\s@\"]+(\.[^<>()\[\]\.,;:\s@\"]+)*)|(\".+\"))@(([^<>()\.,;\s@\"]+\.{0,1})+([^<>()\.,;:\s@\"]{2,}|[\d\.]+))$/;
+    return emailRegex.test(mail);
+}
+
 const validarRuc= (number) =>{
     var dto = number.length;
     var valor;
@@ -214,7 +219,8 @@ const generateTableContent=(columns, dataRows)=>{
        generateTableContent,
        validarRucCedula,
        formatToDolar,
-       formatToCurrency
+       formatToCurrency,
+       validarEmail
    }
 
    
