@@ -36,14 +36,18 @@ const updateLocation = async (location , trx) => {
       .update(location);
       return location;
 }
-const deleteLocation= async({id_location}, trx) =>{
+const deleteLocation= async(id_location, trx) =>{
   await (trx || knex)('location')
   .where({ id_location })
   .update({ 
       status:constants.STATUS_INACTIVE,
-      deleted_at:knex.fn.now()
+      updated_at:knex.fn.now()
     });
-  return ;
+  return await knex.select()
+  .from('location')
+  .where({
+      id_location,
+  });
 }
 const validateLocationData = async ({body, isCreate = true}) => {
   let validationObject ={};

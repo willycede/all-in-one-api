@@ -49,14 +49,14 @@ const updateLocation = async (req,res) => {
 }
 const deleteLocation = async (req,res) => {
     try {
-        const location_id = req.params.location_id;
+        const location_id = parseInt(req.params.id_location);
         let errorMessage='';
         if(!location_id){
             errorMessage='El id de la localidad no puede ser nulo o vacio';
             return response.error(req,res,{message:errorMessage}, 422);
         }
-        await locationModel.deleteLocation(location_id);
-        return response.success(req, res, {}, 200);
+        const location = await locationModel.deleteLocation(location_id);
+        return response.success(req, res, location, 200);
     } catch (error) {
         return response.error(req,res,{message:`deleteLocation: ${error.message}`},422);
     }
