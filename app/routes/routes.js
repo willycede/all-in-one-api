@@ -4,7 +4,7 @@ const users = require('./users/user')
 const countries = require('./countries/countries')
 const states = require('./states/states')
 const cities = require('./cities/cities')
-const companies = require('./companies/companies')
+const company = require('./company/company')
 const categories = require('./categories/categories')
 const products = require('./products/products')
 const api = '/api'
@@ -18,7 +18,7 @@ const routes = function (server){
     server.use(`${api}/countries`,countries);
     server.use(`${api}/states`,states);
     server.use(`${api}/cities`,cities);
-    server.use(`${api}/companies`,companies);
+    server.use(`${api}/company`,company);
     server.use(`${api}/categories`,categories);
     server.use(`${api}/products`,products);
 }
