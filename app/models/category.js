@@ -2,10 +2,10 @@
 const generalConstants = require('../constants/constants')
 const knex = require('../db/knex')
 
-const getCategoriesByCompanyId = async({company_id})=>{
+const getCategoriesByCompanyId = async({id_company})=>{
     return await knex.select()
-    .from('categories')
-    .where({company_id, status: generalConstants.STATUS_ACTIVE})
+    .from('category')
+    .where({id_company, status: generalConstants.STATUS_ACTIVE})
     .orderBy('name','asc')
 }
 module.exports = {
