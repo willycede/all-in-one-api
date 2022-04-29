@@ -28,3 +28,6 @@ ADD PRIMARY KEY (`id_user_rol`);
 ;
 ALTER TABLE `all_in_one`.`user_rol` 
 CHANGE COLUMN `id_user_rol` `id_user_rol` INT NOT NULL AUTO_INCREMENT ;
+
+ALTER TABLE `all_in_one`.`category` 
+CHANGE COLUMN `updated_at` `updated_at` DATETIME NULL ;
