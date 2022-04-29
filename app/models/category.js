@@ -12,7 +12,7 @@ const getCategoriesByCompanyId = async({id_company})=>{
 const getCategoryByCompanyIdAndName = async({id_company, name, isCreate})=>{
     const query = {
         id_company,
-        status: constants.STATUS_ACTIVE
+        status: generalConstants.STATUS_ACTIVE
     }
     if (isCreate) {
         query.name = name;
@@ -40,7 +40,7 @@ const deleteCategory = async(id_category, trx) =>{
   await (trx || knex)('category')
   .where({ id_category })
   .update({ 
-        status:constants.STATUS_INACTIVE,
+        status:generalConstants.STATUS_INACTIVE,
         updated_at:knex.fn.now()
     });
   return await knex.select()
@@ -59,7 +59,7 @@ const validateCategoryData = async ({body, isCreate = true}) => {
     validationObject.name = "El nombre de categoría es requerido y no puede ser vacio o nulo";
   }
   const categoryDb = await getCategoryByCompanyIdAndName({
-    company_id: body.id_company,
+    id_company: body.id_company,
     name: body.name,
     isCreate
   })
@@ -81,7 +81,7 @@ const validateCategoryData = async ({body, isCreate = true}) => {
 const createCategoryLogic = async (category) => {
   const categoryToDb = {
     ...category,
-    status: constants.STATUS_ACTIVE,
+    status: generalConstants.STATUS_ACTIVE,
     created_at: new Date(Date.now()),
   };
   const createdCategory = await createCategory(categoryToDb);
@@ -89,8 +89,8 @@ const createCategoryLogic = async (category) => {
 }
 const updateCategoryLogic = async (category, id_category) => {
   const categoryToDb = {
-    ...location,
-    status: constants.STATUS_ACTIVE,
+    ...category,
+    status: generalConstants.STATUS_ACTIVE,
     id_category,
     updated_at: new Date(Date.now()),
   };
