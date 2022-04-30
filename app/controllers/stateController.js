@@ -1,6 +1,5 @@
-const stateModel = require('../models/states')
+const stateModel = require('../models/state')
 const response = require('../config/response');
-const utils = require('../utils/globalFunctions')
 
 const getStatesByCountryId = async(req,res)=>{
     try {

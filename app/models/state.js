@@ -2,12 +2,12 @@
 const knex = require('../db/knex')
 
 //get all roles with status 1 
-const getCitiesByStateId = async({state_id})=>{
+const getStatesByCountryId = async({country_id})=>{
     return await knex.select()
-    .from('cities')
-    .where({state_id})
+    .from('state')
+    .where({country_id})
     .orderBy('name','asc')
 }
 module.exports = {
-    getCitiesByStateId,
+    getStatesByCountryId,
 }
