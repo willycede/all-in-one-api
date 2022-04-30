@@ -1,21 +1,22 @@
 //Import necessary libraries
+const constants = require("../constants/constants");
+
 const generalConstants = require('../constants/constants')
 const utils = require('../utils/globalFunctions')
 const knex = require('../db/knex')
 
 const createCompany = async ({ company }) => {
-    console.log(company);
+   
+
     const company_insert = await knex('company').insert(company)
-    
-    console.log("este es un mensaje : ",company_insert[0]);
 
     return await knex.select()
     .from('company')
     .where({
       id_company:company_insert[0]
     });
-};
 
+};
 
 const validateCompanyData = async ({
     body
@@ -37,11 +38,18 @@ const validateCompanyData = async ({
       validationObject.email = "El email es requerido y no puede ser vacio o nulo";
     }
 
-    console.log(body.email);
+    //console.log(body.email);
     
     let valiteIdentification= utils.validarRuc(body.ruc)
     if(valiteIdentification.status==0){
         validationObject.ruc=valiteIdentification.message;
+    }
+
+    const ValidaRegistroCompany = await getCompanyRuc(body.ruc);
+
+    if(ValidaRegistroCompany.length > 0){
+      errorMessage = `El ruc : ${body.ruc} ya se encuentra registrado, por favor verificar` 
+      validationObject.ruc="El ruc ya se encuentra registrado";
     }
 
     return {
@@ -49,7 +57,7 @@ const validateCompanyData = async ({
       errorMessage
     };
     
-  }
+};
 
 const createCompanyMetodo = async (
     {
@@ -67,7 +75,6 @@ const createCompanyMetodo = async (
         created_at: new Date(Date.now()),
     }
 
-    console.log(company);
 
     /*
     const token = jwt.sign({ company }, process.env.JWT_SECRET_KEY, { expiresIn: '60d' });
@@ -76,10 +83,9 @@ const createCompanyMetodo = async (
     company.token_expires_in = timestamp;
     company.status = constants.STATUS_ACTIVE;
 */
-console.log('sdsdsdsdsd')
+
     const createCompanyObje = await createCompany({ company });
 
-    //console.log('asasasasasfdfdfddfdf')
     company.id_companny = createCompanyObje[0].id_company;
    /*
     const token2 = jwt.sign({ company }, process.env.JWT_SECRET_KEY, { expiresIn: `${process.env.JWT_TOKEN_DURATION}d` });
@@ -89,15 +95,66 @@ console.log('sdsdsdsdsd')
     company.token_expires_in = timestamp2;*/
   
     return company;
-}
+};
 
-//get all roles with status 1 
+
 const getCompany = async () => {
     return await knex.select()
         .from('company')
         .where({ status: generalConstants.STATUS_ACTIVE })
         .orderBy('name', 'asc')
-}
+};
+
+const getCompanyById = async (id) => {
+
+  return await knex.select()
+      .from('company')
+      .where({ id_company: id })
+      
+};
+
+const getCompanyRuc = async (ruc) => {
+
+  return await knex.select()
+      .from('company')
+      .where({ ruc: ruc })
+      .orderBy('name', 'asc')
+      
+};
+
+const deleteCompany= async({id_company}, trx) =>{
+
+  await (trx || knex)('company')
+  .where('id_company', '=', id_company)
+  .update({ 
+      status:constants.STATUS_INACTIVE,
+      deleted_at:knex.fn.now()
+   });
+
+   return await getCompanyById(id_company);
+
+};
+
+const putCompanyUpdate = async ({body}, trx) => {
+
+  const id_company = body.id_company
+
+  await (trx || knex)('company')
+  .where('id_company', '=', body.id_company)
+  .update(
+    {
+      name:body.name,
+      description:body.description,
+      phone:body.phone,
+      email:body.email,
+      updated_at:knex.fn.now()
+    });
+
+  return await getCompanyById(body.id_company);
+
+};
+
+
 module.exports = {
-    getCompany, createCompanyMetodo,createCompany,validateCompanyData,
+    getCompany, createCompanyMetodo,createCompany,validateCompanyData,putCompanyUpdate,deleteCompany,
 }

@@ -30,13 +30,47 @@ const createCompany = async (req, res) => {
 
 const get_Company = async (req, res) => {
     try {
-        console.log('hola');
+     
         const companies = await companyModel.getCompany()
         return response.success(req, res, companies, 200)
+
     } catch (error) {
         return response.error(req, res, { message: `getCompanies: ${error.message}` }, 422)
     }
 }
+
+const put_Company = async (req, res) => {
+    try {
+
+        const body = req.body;
+     
+        const companiesUp = await companyModel.putCompanyUpdate({
+            body
+        })
+
+        return response.success(req, res, companiesUp, 200)
+        
+    } catch (error) {
+        return response.error(req, res, { message: `putCompanyUpdate: ${error.message}` }, 422)
+    }
+}
+
+
+
+const delete_Company = async (req, res) => {
+    try {
+
+        const id_company = req.body.id_company;
+     
+        const companiesDelete = await companyModel.deleteCompany({id_company})
+
+        return response.success(req, res, companiesDelete, 200)
+        
+    } catch (error) {
+        return response.error(req, res, { message: `deleteCompany: ${error.message}` }, 422)
+    }
+}
+
 module.exports = {
-    get_Company,createCompany,
+    get_Company,createCompany,put_Company,delete_Company,
 }
