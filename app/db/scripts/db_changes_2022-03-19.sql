@@ -69,3 +69,22 @@ CHANGE COLUMN `longitude` `longitude` DECIMAL(11,8) NULL DEFAULT NULL ;
 ALTER TABLE `all_in_one`.`country` 
 CHANGE COLUMN `timezones` `timezones` TEXT NULL DEFAULT NULL ,
 CHANGE COLUMN `translations` `translations` TEXT NULL DEFAULT NULL ;
+
+
+CREATE TABLE `states` (
+  `id_state` mediumint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `country_id` mediumint unsigned NOT NULL,
+  `country_code` char(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `fips_code` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `iso2` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `latitude` decimal(10,8) DEFAULT NULL,
+  `longitude` decimal(11,8) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `flag` tinyint(1) NOT NULL DEFAULT '1',
+  `wikiDataId` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Rapid API GeoDB Cities',
+  PRIMARY KEY (`id_state`)
+) ENGINE=InnoDB AUTO_INCREMENT=4953 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=COMPACT;
+
+
