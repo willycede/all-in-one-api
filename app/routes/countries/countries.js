@@ -2,7 +2,7 @@ const express = require('express')
 const router = express.Router()
 const countriesController = require('../../controllers/countryController')
 
-router.get('/', countriesController.getCountries)
+router.get('/getCountries', countriesController.getCountries)
 
 
 module.exports = router;
