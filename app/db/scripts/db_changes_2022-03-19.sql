@@ -71,7 +71,7 @@ CHANGE COLUMN `timezones` `timezones` TEXT NULL DEFAULT NULL ,
 CHANGE COLUMN `translations` `translations` TEXT NULL DEFAULT NULL ;
 
 
-CREATE TABLE `states` (
+CREATE TABLE `state` (
   `id_state` mediumint unsigned NOT NULL AUTO_INCREMENT,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `country_id` mediumint unsigned NOT NULL,
@@ -88,3 +88,21 @@ CREATE TABLE `states` (
 ) ENGINE=InnoDB AUTO_INCREMENT=4953 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=COMPACT;
 
 
+
+CREATE TABLE `city` (
+  `id_city` mediumint unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `state_id` mediumint unsigned NOT NULL,
+  `state_code` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `country_id` mediumint unsigned NOT NULL,
+  `country_code` char(2) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `latitude` decimal(10,8) NOT NULL,
+  `longitude` decimal(11,8) NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT '2013-12-31 20:01:01',
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `flag` tinyint(1) NOT NULL DEFAULT '1',
+  `wikiDataId` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Rapid API GeoDB Cities',
+  PRIMARY KEY (`id_city`),
+  KEY `cities_test_ibfk_1` (`state_id`),
+  KEY `cities_test_ibfk_2` (`country_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=148554 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=COMPACT;

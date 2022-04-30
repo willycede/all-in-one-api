@@ -4,7 +4,7 @@ const knex = require('../db/knex')
 //get all roles with status 1 
 const getCitiesByStateId = async({state_id})=>{
     return await knex.select()
-    .from('cities')
+    .from('city')
     .where({state_id})
     .orderBy('name','asc')
 }
