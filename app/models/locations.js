@@ -64,6 +64,12 @@ const validateLocationData = async ({body, isCreate = true}) => {
   if(!body.longitud){
     validationObject.longitud = "La longitud es requerido y no puede ser vacio o nulo";
   }
+  if (Object.keys(validationObject).length > 0) {
+    return {
+        validationObject,
+        errorMessage
+      };
+  }
   const locationDb = await getLocationsByCompanyIdAndName({
     company_id: body.id_company,
     name_location: body.name_location,

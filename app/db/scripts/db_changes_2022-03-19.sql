@@ -106,3 +106,9 @@ CREATE TABLE `city` (
   KEY `cities_test_ibfk_1` (`state_id`),
   KEY `cities_test_ibfk_2` (`country_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=148554 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=COMPACT;
+
+
+ALTER TABLE `all_in_one`.`permissions` 
+ADD COLUMN `status` INT NOT NULL AFTER `delete`,
+ADD COLUMN `created_at` DATETIME NOT NULL AFTER `status`,
+ADD COLUMN `updated_at` DATETIME NULL AFTER `created_at`;

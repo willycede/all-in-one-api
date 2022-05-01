@@ -8,6 +8,7 @@ const company = require('./company/company')
 const categories = require('./categories/categories')
 const products = require('./products/products')
 const locations = require('./locations/locations')
+const permissions = require('./permissions/permissions')
 const api = '/api'
 
 
@@ -23,6 +24,7 @@ const routes = function (server){
     server.use(`${api}/categories`,categories);
     server.use(`${api}/products`,products);
     server.use(`${api}/locations`,locations);
+    server.use(`${api}/permissions`,permissions);
 }
 
 // Authorization: Bearer <token>
