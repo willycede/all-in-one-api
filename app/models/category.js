@@ -58,6 +58,12 @@ const validateCategoryData = async ({body, isCreate = true}) => {
   if(!body.name){
     validationObject.name = "El nombre de categoría es requerido y no puede ser vacio o nulo";
   }
+  if (Object.keys(validationObject).length > 0) {
+    return {
+        validationObject,
+        errorMessage
+      };
+  }
   const categoryDb = await getCategoryByCompanyIdAndName({
     id_company: body.id_company,
     name: body.name,
