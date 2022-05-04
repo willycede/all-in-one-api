@@ -10,6 +10,7 @@ const products = require('./products/products')
 const locations = require('./locations/locations')
 const permissions = require('./permissions/permissions')
 const catalogs = require('./catalogs/catalogs')
+const features = require('./features/features')
 const api = '/api'
 
 
@@ -27,6 +28,7 @@ const routes = function (server){
     server.use(`${api}/locations`,locations);
     server.use(`${api}/permissions`,permissions);
     server.use(`${api}/catalogs`,catalogs);
+    server.use(`${api}/features`,features);
 }
 
 // Authorization: Bearer <token>
