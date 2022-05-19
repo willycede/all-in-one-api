@@ -37,7 +37,7 @@ const login = async (req,res) => {
     const email = body.email;
     const password= body.password;
     const validatedData = await userModel.validateUserLoginData({email, password, isAdmin: false});
-    if(Object.entries(validatedData.validationObject).length>0){
+    if(Object.entries(validatedData.validationObject).length>0 || validatedData.errorMessage){
       return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
     }
     const user = await userModel.getUserByEmailRolClient({
@@ -65,8 +65,8 @@ const loginAdmin = async (req,res) => {
     const password= body.password;
     const company_id = body.company_id;
     const validatedData = await userModel.validateUserLoginData({email, password, isAdmin: true, company_id});
-    if(Object.entries(validatedData.validationObject).length>0){
-      return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
+    if(Object.entries(validatedData.validationObject).length>0 || validatedData.errorMessage){
+      return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422);
     }
     const user = await userModel.getUserByCompanyAndEmail({
       email,

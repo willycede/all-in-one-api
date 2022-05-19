@@ -161,11 +161,11 @@ const validateUserLoginData = async ({email, password, isAdmin, company_id}) => 
     }
     if(!user){
       errorMessage=`El usuario con el email ingresado no existe en nuestros registros`;
+    } else {
+      if(!bcrypt.compareSync(password, user.password)){
+        errorMessage ="Email o contraseña incorrectos."
+      }
     }
-    if(!bcrypt.compareSync(password, user.password)){
-      errorMessage ="Email o contraseña incorrectos."
-    }
-  
     return {
       validationObject,
       errorMessage
