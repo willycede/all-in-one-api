@@ -139,9 +139,21 @@ const validateUserLoginData = async ({email, password, isAdmin, company_id}) => 
       validationObject.email = "El email ingresado no posee un formato valido.";
     }
     let user;
+    if (Object.keys(validationObject).length > 0) {
+      return {
+          validationObject,
+          errorMessage
+        };
+    }
     if(isAdmin) {
       if(!company_id) {
         validationObject.company_id = "El id de compañoa es requerido y no puede estar vacio o ser nulo.";
+      }
+      if (Object.keys(validationObject).length > 0) {
+        return {
+            validationObject,
+            errorMessage
+          };
       }
       user = await getUserByCompanyAndEmail({company_id ,email});
     }else {
@@ -149,11 +161,11 @@ const validateUserLoginData = async ({email, password, isAdmin, company_id}) => 
     }
     if(!user){
       errorMessage=`El usuario con el email ingresado no existe en nuestros registros`;
+    } else {
+      if(!bcrypt.compareSync(password, user.password)){
+        errorMessage ="Email o contraseña incorrectos."
+      }
     }
-    if(!bcrypt.compareSync(password, user.password)){
-      errorMessage ="Email o contraseña incorrectos."
-    }
-  
     return {
       validationObject,
       errorMessage
