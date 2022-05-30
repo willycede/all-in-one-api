@@ -50,23 +50,22 @@ const get_Rols = async (req, res) => {
     }
 }
 
-/*
-const put_Company = async (req, res) => {
+const put_Rol = async (req, res) => {
     try {
 
         const body = req.body;
      
-        const companiesUp = await rolModel.putCompanyUpdate({
+        const rolUp = await rolModel.putRolUpdate({
             body
         })
 
-        return response.success(req, res, companiesUp, 200)
+        return response.success(req, res, rolUp, 200)
         
     } catch (error) {
-        return response.error(req, res, { message: `putCompanyUpdate: ${error.message}` }, 422)
+        return response.error(req, res, { message: `put_Rol: ${error.message}` }, 422)
     }
 }
-*/
+
 const delete_rol_Company = async (req, res) => {
     try {
 
@@ -82,5 +81,5 @@ const delete_rol_Company = async (req, res) => {
 }
 
 module.exports = {
-    createRolController,get_Rols,delete_rol_Company,
+    createRolController,get_Rols,delete_rol_Company,put_Rol,
 }

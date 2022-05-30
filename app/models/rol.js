@@ -46,7 +46,21 @@ const deleteRol = async({id_rol}, trx) =>{
   
   };
 
+const putRolUpdate = async ({body}, trx) => {
+
+await (trx || knex)('rol')
+.where('id_rol', '=', body.id_rol)
+.update(
+    {
+    name:body.name,
+    description:body.description
+    });
+
+return await getRolById(body.id_rol);
+
+};
+
 
 module.exports = {
-    createRol,getRol,deleteRol,
+    createRol,getRol,deleteRol,putRolUpdate,
 }
