@@ -55,8 +55,6 @@ const put_Company = async (req, res) => {
     }
 }
 
-
-
 const delete_Company = async (req, res) => {
     try {
 
