@@ -6,7 +6,7 @@ const companiesUsersController = require('../../controllers/companyUsersControll
 router.get('/', companiesUsersController.get_CompanyUser)
 router.post('/create_company_users', companiesUsersController.createCompanyUsers)
 //router.put('/update_company', companiesUsersController.put_Company)
-//router.delete('/delete_company', companiesUsersController.delete_Company)
+router.delete('/delete_company_users', companiesUsersController.delete_CompanyUser)
 
 
 

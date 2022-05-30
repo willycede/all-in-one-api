@@ -3,30 +3,35 @@ const response = require('../config/response');
 
 
 const createCompanyUsers = async (req, res) => {
-    //let validationObject ={}
+    
+    let validationObject ={}
     try {
 
         const id_company = req.body.id_company;
         const id_users = req.body.id_users;
         const status = req.body.status;
-        /*
-        const validatedData = await companyuserModel.validateCompanyData({
+
+        const body = req.body;
+
+        
+        const validatedData = await companyuserModel.validateUserCompanyData({
             body
         });
 
         if (Object.entries(validatedData.validationObject).length > 0 || validatedData.errorMessage) {
             return response.error(req, res, { message: validatedData.errorMessage, validationObject: validatedData.validationObject }, 422);
         }
-        */
+        
         const createdCompanyUser = await companyuserModel.createCompanyUser(
            
                 id_company, id_users, status
             
         );
         return response.success(req, res, createdCompanyUser, 200);
+
     } catch (error) {
         return response.error(req, res, { message: `createdCompanyUserError: ${error.message}` }, 422)
-        return response.error(req, res, { message: `createdCompanyError: ${error.message}` }, 422)
+        return response.error(req, res, { message: `createdCompanyUserError: ${error.message}` }, 422)
     }
 
 };
@@ -34,7 +39,7 @@ const createCompanyUsers = async (req, res) => {
 const get_CompanyUser = async (req, res) => {
     try {
      
-        const companiesUser = await companyuserModel.getCompanyUserByUserId()
+        const companiesUser = await companyuserModel.getCompanyUser()
         return response.success(req, res, companiesUser, 200)
 
     } catch (error) {
@@ -42,38 +47,21 @@ const get_CompanyUser = async (req, res) => {
     }
 }
 
-const put_Company = async (req, res) => {
+
+const delete_CompanyUser = async (req, res) => {
     try {
 
-        const body = req.body;
+        const id_company_user = req.body.id_company_user;
      
-        const companiesUp = await companyuserModel.putCompanyUpdate({
-            body
-        })
+        const companyUsersDelete = await companyuserModel.deleteCompanyUsers({id_company_user})
 
-        return response.success(req, res, companiesUp, 200)
+        return response.success(req, res, companyUsersDelete, 200)
         
     } catch (error) {
-        return response.error(req, res, { message: `putCompanyUpdate: ${error.message}` }, 422)
-    }
-}
-
-
-
-const delete_Company = async (req, res) => {
-    try {
-
-        const id_company = req.body.id_company;
-     
-        const companiesDelete = await companyuserModel.deleteCompany({id_company})
-
-        return response.success(req, res, companiesDelete, 200)
-        
-    } catch (error) {
-        return response.error(req, res, { message: `deleteCompany: ${error.message}` }, 422)
+        return response.error(req, res, { message: `delete_CompanyUser: ${error.message}` }, 422)
     }
 }
 
 module.exports = {
-    get_CompanyUser,createCompanyUsers,//put_Company,delete_Company,
+    get_CompanyUser,createCompanyUsers,delete_CompanyUser
 }
