@@ -15,7 +15,7 @@ const deleteCompanyUsers= async({id_company_user}, trx) =>{
   };
 
 const getCompanyUserById = async (id_company_user) => {
-    console.log(id_company_user);
+   
     return await knex('company_users as p')
     .join('users as u', 'u.id_users', 'p.id_users')
     .join('company as c', 'c.id_company', 'p.id_company')
