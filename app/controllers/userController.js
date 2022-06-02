@@ -44,12 +44,17 @@ const login = async (req,res) => {
       email
     });
     user.id_users = user.id_users;
-    const token= jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
+    const token= jwt.sign({
+      id_users: user.id_users,
+      name_user: user.name_user,
+      last_name_user: user.last_name_user,
+      identification_number: user.identification_number,
+      email: user.email,
+    }, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
     const timestamp = moment().add(720, 'days').unix();
     user.access_token= token;
     user.token_expires_in=timestamp;
     await userModel.updateUserSessionData({user})
-
     return response.success(req,res,user,200)
   } catch (error) {
     return response.error(req,res,{message:`LoginError: ${error.message}`}, 422)
