@@ -112,3 +112,7 @@ ALTER TABLE `all_in_one`.`permissions`
 ADD COLUMN `status` INT NOT NULL AFTER `delete`,
 ADD COLUMN `created_at` DATETIME NOT NULL AFTER `status`,
 ADD COLUMN `updated_at` DATETIME NULL AFTER `created_at`;
+
+
+ALTER TABLE `all_in_one`.`company` 
+ADD COLUMN `img` LONGTEXT NOT NULL AFTER `updated_at`;
