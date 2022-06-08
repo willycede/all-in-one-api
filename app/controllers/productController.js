@@ -44,7 +44,6 @@ const CreateProducts = async (req, res) => {
         const external_product_id = req.body.external_product_id
 
         const body = req.body;
-
         
         const validatedData = await productModel.validateExistProduct({
             body

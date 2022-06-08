@@ -14,8 +14,12 @@ const putProductsUpdate = async ({ body }, trx) => {
                 discount:body.discount,
                 updated_at: knex.fn.now()
             });
+    
+    const id_pro = body.id_products;
 
-    return await getProductsByProductId(body.id_products);
+    console.log(id_pro);
+
+    return await getProductsByProductId({id_pro});
 
 };
 
@@ -27,6 +31,7 @@ const getProductsByCategoryId = async ({ category_id }) => {
 }
 
 const getProductsByProductId = async ({ id_products }) => {
+    console.log(id_products);
     return await knex.select()
         .from('produtcs')
         .where({ id_products: id_products, status: generalConstants.STATUS_ACTIVE })
@@ -86,6 +91,9 @@ const validateExistProduct = async ({
     body
 }) => {
 
+    
+    console.log(body);
+
     let validationObject = {};
     let errorMessage = "";
 
@@ -95,6 +103,14 @@ const validateExistProduct = async ({
 
     if (!body.name) {
         validationObject.description = "El nombre del producto es obligatorio";
+    }
+
+    if (body.price <= 0) {
+        validationObject.description = "El precio no puede ser cero 0 menor a 0";
+    }
+
+    if (body.discount >= body.price) {
+        validationObject.description = "El descuento no puede ser mayor o igual al precio";
     }
 
     const ValidaRegistroProduct = await getProductsByCodProduct(body.cod_products);
