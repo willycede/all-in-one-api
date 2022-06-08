@@ -14,24 +14,21 @@ const putProductsUpdate = async ({ body }, trx) => {
                 discount:body.discount,
                 updated_at: knex.fn.now()
             });
-    
-    const id_pro = body.id_products;
 
-    console.log(id_pro);
-
-    return await getProductsByProductId({id_pro});
+    return await getProductsByProductId( body.id_products);
 
 };
 
-const getProductsByCategoryId = async ({ category_id }) => {
-    return await knex.select()
-        .from('produtcs')
-        .where({ category_id, status: generalConstants.STATUS_ACTIVE })
-        .orderBy('name', 'asc')
+const getProductsByCategoryId = async (category_id) => {
+    return await knex('produtcs as p')
+        .join('features as f', 'f.id_products', 'p.id_products')
+        .join('category as cat', 'cat.id_category', 'f.id_category')
+        .select('p.id_products','p.cod_products','p.name','p.description', 'cat.id_category', 'cat.name')
+        .where({ 'cat.id_category':category_id})
+        .orderBy('cat.name', 'asc');
 }
 
-const getProductsByProductId = async ({ id_products }) => {
-    console.log(id_products);
+const getProductsByProductId = async (id_products) => {
     return await knex.select()
         .from('produtcs')
         .where({ id_products: id_products, status: generalConstants.STATUS_ACTIVE })
