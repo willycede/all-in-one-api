@@ -116,3 +116,27 @@ ADD COLUMN `updated_at` DATETIME NULL AFTER `created_at`;
 
 ALTER TABLE `all_in_one`.`company` 
 ADD COLUMN `img` LONGTEXT NOT NULL AFTER `updated_at`;
+
+
+CREATE TABLE `all_in_one`.`general_categories` (
+  `idgeneral_categories` INT NOT NULL,
+  `name` VARCHAR(100) NULL,
+  `description` VARCHAR(150) NULL,
+  `status` INT NULL,
+  PRIMARY KEY (`idgeneral_categories`));
+
+CREATE TABLE `all_in_one`.`company_general_categories` (
+  `idcompany_general_categories` INT NOT NULL,
+  `id_company` INT NOT NULL,
+  `id_general_categories` INT NOT NULL,
+  `status` INT NULL,
+  PRIMARY KEY (`idcompany_general_categories`));
+
+  ALTER TABLE `all_in_one`.`general_categories` 
+CHANGE COLUMN `idgeneral_categories` `idgeneral_categories` INT NOT NULL AUTO_INCREMENT ;
+
+ALTER TABLE `all_in_one`.`company_general_categories` 
+CHANGE COLUMN `idcompany_general_categories` `idcompany_general_categories` INT NOT NULL AUTO_INCREMENT ;
+
+ALTER TABLE `all_in_one`.`category` 
+ADD COLUMN `id_general_category` INT NOT NULL AFTER `id_company`;
