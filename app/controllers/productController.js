@@ -43,18 +43,7 @@ const getProductsByProductId = async(req,res)=>{
     }
 }
 const CreateProducts = async (req, res) => {
-    
-    let validationObject ={}
     try {
-
-        const id_cod_catalog = req.body.id_cod_catalog;
-        const cod_products = req.body.cod_products;
-        const name = req.body.name;
-        const description = req.body.description;
-        const price = req.body.price
-        const discount = req.body.discount
-        const id_category = req.body.id_category
-        const external_product_id = req.body.external_product_id
 
         const body = req.body;
         
@@ -73,7 +62,6 @@ const CreateProducts = async (req, res) => {
         return response.success(req, res, createdProduct, 200);
 
     } catch (error) {
-        return response.error(req, res, { message: `createdProductError: ${error.message}` }, 422)
         return response.error(req, res, { message: `createdProductError: ${error.message}` }, 422)
     }
 
@@ -94,17 +82,28 @@ const putProduct = async (req, res) => {
 
     } catch (error) {
         return response.error(req, res, { message: `putProductError: ${error.message}` }, 422)
-        return response.error(req, res, { message: `putProductError: ${error.message}` }, 422)
     }
 
 };
 
 
-
+const getRandomProducts = async(req,res)=>{
+    try {
+        const products = await productModel.getRandomProducts();
+        for (const product of products) {
+            const listImages = await productModel.getListImagesByProductId(product.id_products);
+            product.images = listImages;
+        }
+        return response.success(req,res,products,200)
+    } catch (error) {
+        return response.error(req,res,{message:`getRamdomProducts: ${error.message}`},422)
+    }
+}
 
 module.exports = {
     getProductsByCategoryId,
     getProductsByProductId,
     CreateProducts,
     putProduct,
+    getRandomProducts,
 }

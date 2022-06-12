@@ -151,6 +151,23 @@ const RegistraProductModel = async ({
 
 };
 
+const getRandomProducts = async() => {
+    return await knex.select()
+    .from('products')
+    .where({status: generalConstants.STATUS_ACTIVE})
+    .limit(10)
+    .orderByRaw('RAND()');
+}
+
+const getListImagesByProductId = async(productId) => {
+    return await knex.select()
+    .from('product_images')
+    .where({
+        product_id: productId,
+        status: generalConstants.STATUS_ACTIVE
+    });
+}
+
 
 module.exports = {
     getProductsByCategoryId,
@@ -160,5 +177,7 @@ module.exports = {
     getProductsByCodProduct,
     validateExistProduct,
     RegistraProductModel,
-    putProductsUpdate
+    putProductsUpdate,
+    getRandomProducts,
+    getListImagesByProductId
 }
