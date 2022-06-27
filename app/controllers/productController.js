@@ -100,6 +100,19 @@ const getRandomProducts = async(req,res)=>{
     }
 }
 
+const getRProducts = async(req,res)=>{
+    try {
+        const products = await productModel.getRandomProducts();
+        for (const product of products) {
+            const listImages = await productModel.getListImagesByProductId(product.id_products);
+            product.images = listImages;
+        }
+        return response.success(req,res,products,200)
+    } catch (error) {
+        return response.error(req,res,{message:`getRamdomProducts: ${error.message}`},422)
+    }
+}
+
 module.exports = {
     getProductsByCategoryId,
     getProductsByProductId,
