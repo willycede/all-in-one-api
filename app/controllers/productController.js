@@ -3,20 +3,18 @@ const response = require('../config/response');
 
 const getProductsByCategoryId = async(req,res)=>{
     try {
-       
-        let validationObject ={}
-
-        const category_id = req.params.category_id
-        let errorMessage=''
-
-        if(category_id == null || category_id==undefined || category_id =='' || category_id ==0){
-
-            errorMessage='El id de categoría no puede ser nulo o vacio'
-            return response.error(req,res,{message:errorMessage, validationObject}, 422)
-
+        let category_id = req.params.category_id;
+        let products;
+        if(!category_id || category_id === 'undefined'){
+            products = await productModel.getAllProducts();
+        }else {
+            category_id = parseInt(category_id);
+            products = await productModel.getProductsByGeneralCategoryId(category_id);
+        } 
+        for (const product of products) {
+            const listImages = await productModel.getListImagesByProductId(product.id_products);
+            product.images = listImages;
         }
-
-        const products = await productModel.getProductsByCategoryId(category_id)
         return response.success(req,res,products,200)
 
     } catch (error) {
@@ -88,19 +86,6 @@ const putProduct = async (req, res) => {
 
 
 const getRandomProducts = async(req,res)=>{
-    try {
-        const products = await productModel.getRandomProducts();
-        for (const product of products) {
-            const listImages = await productModel.getListImagesByProductId(product.id_products);
-            product.images = listImages;
-        }
-        return response.success(req,res,products,200)
-    } catch (error) {
-        return response.error(req,res,{message:`getRamdomProducts: ${error.message}`},422)
-    }
-}
-
-const getRProducts = async(req,res)=>{
     try {
         const products = await productModel.getRandomProducts();
         for (const product of products) {

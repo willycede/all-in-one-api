@@ -160,3 +160,10 @@ CREATE TABLE `all_in_one`.`product_images` (
   `status` INT NOT NULL,
   UNIQUE INDEX `product_images_id_UNIQUE` (`product_images_id` ASC) VISIBLE,
   PRIMARY KEY (`product_images_id`));
+
+
+ALTER TABLE `all_in_one`.`features` 
+ADD COLUMN `id_feauture` INT NOT NULL AUTO_INCREMENT FIRST,
+CHANGE COLUMN `id_catalogo` `id_catalogo` INT NULL ,
+ADD PRIMARY KEY (`id_feauture`);
+;
