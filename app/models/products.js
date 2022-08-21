@@ -20,7 +20,7 @@ const putProductsUpdate = async ({ body }, trx) => {
 };
 
 const getProductsByCategoryId = async (category_id) => {
-    return await knex('products as p')
+    return await knex('produtcs as p')
         .join('features as f', 'f.id_products', 'p.id_products')
         .join('category as cat', 'cat.id_category', 'f.id_category')
         .select('p.id_products','p.cod_products','p.name','p.description', 'cat.id_category', 'cat.name')
@@ -30,14 +30,14 @@ const getProductsByCategoryId = async (category_id) => {
 
 const getProductsByProductId = async (id_products) => {
     return await knex.select()
-        .from('produtcs')
+        .from('products')
         .where({ id_products: id_products, status: generalConstants.STATUS_ACTIVE })
         .orderBy('name', 'asc')
 }
 
 const getProductsByCodProduct = async (cod_products) => {
     return await knex.select()
-        .from('produtcs')
+        .from('products')
         .where({ cod_products: cod_products, status: generalConstants.STATUS_ACTIVE })
         .orderBy('name', 'asc')
         .first()
@@ -65,7 +65,7 @@ const postCreateFeacture = async (id_products, id_category, id_catalogo) => {
 
 const postCreateProducts = async (id_cod_catalog, cod_products, name, description, price, discount, external_product_id) => {
 
-    const result = await knex('produtcs').insert(
+    const result = await knex('products').insert(
         {
             id_cod_catalog,
             cod_products,
@@ -79,7 +79,7 @@ const postCreateProducts = async (id_cod_catalog, cod_products, name, descriptio
         }
     )
 
-    return await knex('produtcs').where({
+    return await knex('products').where({
         id_products: result[0]
     }).first()
 };
@@ -170,7 +170,7 @@ const getListImagesByProductId = async(productId) => {
 
 
 module.exports = {
-    getProductsByCategoryId,
+    getProductsByGeneralCategoryId,
     getProductsByProductId,
     postCreateProducts,
     postCreateFeacture,
@@ -179,5 +179,6 @@ module.exports = {
     RegistraProductModel,
     putProductsUpdate,
     getRandomProducts,
-    getListImagesByProductId
+    getListImagesByProductId,
+    getAllProducts
 }
