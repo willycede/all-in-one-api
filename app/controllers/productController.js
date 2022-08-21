@@ -1,16 +1,23 @@
 const productModel = require('../models/products')
 const response = require('../config/response');
+const { off } = require('npm');
 
 const getProductsByCategoryId = async(req,res)=>{
     try {
+        const query = req.query;
         let category_id = req.params.category_id;
         let products;
         if(!category_id || category_id === 'undefined'){
-            products = await productModel.getAllProducts();
+            products = await productModel.getAllProducts(query);
         }else {
             category_id = parseInt(category_id);
-            products = await productModel.getProductsByGeneralCategoryId(category_id);
-        } 
+            products = await productModel.getProductsByGeneralCategoryId(category_id, query);
+        }
+        if (query.searchBy){
+            const regexText = new RegExp(query.searchBy.toLowerCase() || '');
+            products = products.filter(product => regexText.test(product.name.toLowerCase()));
+        }
+     
         for (const product of products) {
             const listImages = await productModel.getListImagesByProductId(product.id_products);
             product.images = listImages;

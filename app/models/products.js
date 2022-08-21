@@ -20,18 +20,22 @@ const putProductsUpdate = async ({ body }, trx) => {
 };
 
 const getAllProducts = async () => {
-    return await knex('products')
-        .where({ 'status':generalConstants.STATUS_ACTIVE})
-        .orderBy('name', 'asc');
+    const queryToSearch ={
+        'status':generalConstants.STATUS_ACTIVE
+    }
+    const queryToExcecute = knex('products')
+        .where(queryToSearch);
+    return await queryToExcecute.orderBy('name', 'asc');
 }
 
 const getProductsByGeneralCategoryId = async (category_id) => {
-    return await knex('products as p')
-        .leftJoin('features as f', 'f.id_products', 'p.id_products')
-        .join('category as cat', 'cat.id_category', 'f.id_category')
-        .select('p.id_products','p.cod_products','p.name','p.description', 'cat.id_category', 'cat.name')
-        .where({ 'cat.id_general_category':category_id})
-        .orderBy('cat.name', 'asc');
+
+    const queryToExcecute = knex('products as p')
+    .leftJoin('features as f', 'f.id_products', 'p.id_products')
+    .join('category as cat', 'cat.id_category', 'f.id_category')
+    .select('p.id_products','p.cod_products','p.name','p.description', 'cat.id_category', 'p.price')
+    .where({ 'cat.id_general_category':category_id});
+    return await queryToExcecute.orderBy('p.name', 'asc');
 }
 
 const getProductsByProductId = async (id_products) => {
