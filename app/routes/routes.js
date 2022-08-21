@@ -6,6 +6,7 @@ const states = require('./states/states')
 const cities = require('./cities/cities')
 const company = require('./company/company')
 const company_users = require('./company_users/company_users')
+const shopping = require('./shopping/shopping')
 const rol = require('./rol/rol')
 const user_rol = require('./user_rol/user_rol')
 const categories = require('./categories/categories')
@@ -31,6 +32,7 @@ const routes = function (server){
     server.use(`${api}/company`,company);
     server.use(`${api}/company_users`,company_users);
     server.use(`${api}/categories`,categories);
+    server.use(`${api}/shoppingcar`,shopping);
     server.use(`${api}/products`,products);
     server.use(`${api}/locations`,locations);
     server.use(`${api}/permissions`,permissions);
