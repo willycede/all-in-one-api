@@ -6,6 +6,8 @@ const knex = require('../db/knex')
 
 const putCompanyUpdate = async (id_shopping_car, {body}, trx) => {
 
+    console.log(id_shopping_car);
+    console.log(body);
 
     await (trx || knex)('shopping_car')
     .where('id_shopping_car', '=', id_shopping_car)
@@ -156,6 +158,7 @@ const createShoppingMetodo = async (
         shopping_car_subtotal: body.shopping_car_subtotal,
         shopping_car_iva: body.shopping_car_iva,
         shopping_car_total: body.shopping_car_total,
+        shopping_car_total_discount:body.shopping_car_total_discount,
         status: body.status,
         created_at: new Date(Date.now()),
     }
@@ -183,6 +186,7 @@ const createShoppingDetailsMetodo = async (
         details_iva: body.details_iva, 
         details_total: body.details_total, 
         created_at: new Date(Date.now()), 
+        updated_at: new Date(Date.now()),
         status: body.status
     }
 
