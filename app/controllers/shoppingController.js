@@ -26,7 +26,7 @@ const createShoppingCarCtr = async (req, res) => {
 
                 var id_shopping_car = ShoppCarActi[0].id_shopping_car;
 
-                const UpdateShopCar = await shoppingModel.putCompanyUpdate(
+                const UpdateShopCar = await shoppingModel.putShoppingUpdate(
                     id_shopping_car,
                     {
                         body
@@ -119,7 +119,7 @@ const createShoppingCarDetailsCtr = async (req, res) => {
             }
 
             /*actualizamos los detalles */
-            await shoppingModel.putCompanyUpdate(
+            await shoppingModel.putShoppingUpdate(
                 id_shopping_car,
                 {
                     body
@@ -167,7 +167,7 @@ const createShoppingCarDetailsCtr = async (req, res) => {
             }
 
             /*actualizamos los detalles */
-            await shoppingModel.putCompanyUpdate(
+            await shoppingModel.putShoppingUpdate(
                 id_shopping_car,
                 {
                     body
@@ -261,7 +261,23 @@ const ShppoingCarUrlPay = async (req, res) => {
 
 }
 
-const putUpdateShoppingCar = async (req, res) =>{
+const putUpdateShoppingPay = async (req, res) =>{
+
+    var body = req.body;
+    let id_shopping_car = body.id_shopping_car;
+
+    body = {
+        "url_payphone": body.url_payphone,
+        "status": body.status            
+    }
+
+    await shoppingModel.putShoppingUpdate(
+        id_shopping_car,
+        {
+            body
+        }               
+        
+    );
 
 }
 
@@ -272,5 +288,5 @@ module.exports = {
     getShoppCar,
     getShoppCarDetails,
     ShppoingCarUrlPay,
-    putUpdateShoppingCar
+    putUpdateShoppingPay
 }

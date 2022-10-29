@@ -4,10 +4,24 @@ const generalConstants = require('../constants/constants')
 const utils = require('../utils/globalFunctions')
 const knex = require('../db/knex')
 
-const putCompanyUpdate = async (id_shopping_car, {body}, trx) => {
 
-    console.log(id_shopping_car);
-    console.log(body);
+const putShoppingUpdatePay = async (id_shopping_car, {body}, trx) => {
+
+
+    await (trx || knex)('shopping_car')
+    .where('id_shopping_car', '=', id_shopping_car)
+    .update(
+    {
+        url_payphone:body.url_payphone,
+        status:body.status
+    });
+
+    return await getShoppingCar(id_shopping_car);
+
+};
+
+const putShoppingUpdate = async (id_shopping_car, {body}, trx) => {
+
 
     await (trx || knex)('shopping_car')
     .where('id_shopping_car', '=', id_shopping_car)
@@ -17,7 +31,9 @@ const putCompanyUpdate = async (id_shopping_car, {body}, trx) => {
         shopping_car_subtotal: body.shopping_car_subtotal,
         shopping_car_iva: body.shopping_car_iva,
         shopping_car_total: body.shopping_car_total,
-        updated_at:knex.fn.now()
+        updated_at:knex.fn.now(),
+        url_payphone:body.url_payphone,
+        status:body.status
     });
 
     return await getShoppingCar(id_shopping_car);
@@ -204,6 +220,7 @@ module.exports = {
     createShoppingCar,    
     createShoppingDetailsMetodo,
     validateShoppinData,
-    putCompanyUpdate,
+    putShoppingUpdate,
     putShoppingDetailsUpdate,
+    putShoppingUpdatePay,
 }
