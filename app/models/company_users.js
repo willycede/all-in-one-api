@@ -48,7 +48,8 @@ const createCompanyUser = async (id_company, id_users, status) => {
             id_company,
             id_users,
             status,
-            created_at: knex.fn.now()
+            created_at: knex.fn.now(),
+            updated_at: knex.fn.now(),
         }
     )
     return await knex('company_users').where({

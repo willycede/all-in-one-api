@@ -216,40 +216,46 @@ const createUserLogic = async (
     isAdmin,
   }
 ) => {
-    //Se encrypta la clave del usuario usando un hash de 10
-    const userPassword= bcrypt.hashSync(body.password, 10);
-    const user = {
-        name_user: body.name_user,
-        last_name_user : body.last_name_user,
-        identification_number: body.identification_number,
-        email : body.email,
-        password: userPassword,
-        created_at: new Date(Date.now()),
-    }
-
-    const token = jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '60d'});
-    const timestamp = moment().add(60, 'days').unix();
-    user.access_token= token;
-    user.token_expires_in=timestamp;
-    user.status= constants.STATUS_ACTIVE;
-    const userCreated = await createUser({ user });
-    //fix de token
-    user.id_users = userCreated[0].id_users;
-    const token2 = jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: `${process.env.JWT_TOKEN_DURATION}d`});
-    const timestamp2 = moment().add(process.env.JWT_TOKEN_DURATION, 'days').unix();
-    user.access_token= token2;
-    user.token_expires_in=timestamp2;
-    await updateUser({user});
-
-
-    //Se debe asociar el user al rol admin o al rol client
-    const userAssociateWithCompany = await createCompanyUser(body.company_id, user.id_users, constants.STATUS_ACTIVE);
-    await createUserRol(userAssociateWithCompany &&  userAssociateWithCompany.length > 0 
-      ? userAssociateWithCompany[0].id_company_user : null, 
-      isAdmin ? constants.ADMIN_ROL: constants.CLIENT_ROL
-    );
-
-    return user;
+  try {
+     //Se encrypta la clave del usuario usando un hash de 10
+     const userPassword= bcrypt.hashSync(body.password, 10);
+     const user = {
+         name_user: body.name_user,
+         last_name_user : body.last_name_user,
+         identification_number: body.identification_number,
+         email : body.email,
+         password: userPassword,
+         created_at: new Date(Date.now()),
+     }
+ 
+     const token = jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '60d'});
+     const timestamp = moment().add(60, 'days').unix();
+     user.access_token= token;
+     user.token_expires_in=timestamp;
+     user.status= constants.STATUS_ACTIVE;
+     const userCreated = await createUser({ user });
+     //fix de token
+     user.id_users = userCreated[0].id_users;
+     const token2 = jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: `${process.env.JWT_TOKEN_DURATION}d`});
+     const timestamp2 = moment().add(process.env.JWT_TOKEN_DURATION, 'days').unix();
+     user.access_token= token2;
+     user.token_expires_in=timestamp2;
+     await updateUser({user});
+ 
+ 
+     //Se debe asociar el user al rol admin o al rol client
+     const userAssociateWithCompany = await createCompanyUser(body.company_id, user.id_users, constants.STATUS_ACTIVE);
+     await createUserRol(userAssociateWithCompany &&  userAssociateWithCompany.length > 0 
+       ? userAssociateWithCompany[0].id_company_user : null, 
+       isAdmin ? constants.ADMIN_ROL: constants.CLIENT_ROL
+     );
+ 
+     return user;
+  } catch (error) {
+    console.log("createUserLogic error", error?.message ? error?.message : error)
+    throw error;
+  }
+   
 }
 module.exports = { 
   getUserByEmail,

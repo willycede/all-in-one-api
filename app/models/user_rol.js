@@ -1,6 +1,6 @@
 const knex = require("../db/knex");
 
-const createUserRol = async (id_rol,id_company_user) => {
+const createUserRol = async (id_company_user, id_rol) => {
     const result = await knex('user_rol').insert(
         {
             id_rol,
