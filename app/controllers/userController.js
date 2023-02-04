@@ -37,19 +37,24 @@ const login = async (req,res) => {
     const email = body.email;
     const password= body.password;
     const validatedData = await userModel.validateUserLoginData({email, password, isAdmin: false});
-    if(Object.entries(validatedData.validationObject).length>0){
+    if(Object.entries(validatedData.validationObject).length>0 || validatedData.errorMessage){
       return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
     }
     const user = await userModel.getUserByEmailRolClient({
       email
     });
     user.id_users = user.id_users;
-    const token= jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
+    const token= jwt.sign({
+      id_users: user.id_users,
+      name_user: user.name_user,
+      last_name_user: user.last_name_user,
+      identification_number: user.identification_number,
+      email: user.email,
+    }, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
     const timestamp = moment().add(720, 'days').unix();
     user.access_token= token;
     user.token_expires_in=timestamp;
     await userModel.updateUserSessionData({user})
-
     return response.success(req,res,user,200)
   } catch (error) {
     return response.error(req,res,{message:`LoginError: ${error.message}`}, 422)
@@ -65,8 +70,8 @@ const loginAdmin = async (req,res) => {
     const password= body.password;
     const company_id = body.company_id;
     const validatedData = await userModel.validateUserLoginData({email, password, isAdmin: true, company_id});
-    if(Object.entries(validatedData.validationObject).length>0){
-      return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422)
+    if(Object.entries(validatedData.validationObject).length>0 || validatedData.errorMessage){
+      return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422);
     }
     const user = await userModel.getUserByCompanyAndEmail({
       email,

@@ -112,3 +112,58 @@ ALTER TABLE `all_in_one`.`permissions`
 ADD COLUMN `status` INT NOT NULL AFTER `delete`,
 ADD COLUMN `created_at` DATETIME NOT NULL AFTER `status`,
 ADD COLUMN `updated_at` DATETIME NULL AFTER `created_at`;
+
+
+ALTER TABLE `all_in_one`.`company` 
+ADD COLUMN `img` LONGTEXT NOT NULL AFTER `updated_at`;
+
+
+CREATE TABLE `all_in_one`.`general_categories` (
+  `idgeneral_categories` INT NOT NULL,
+  `name` VARCHAR(100) NULL,
+  `description` VARCHAR(150) NULL,
+  `status` INT NULL,
+  PRIMARY KEY (`idgeneral_categories`));
+
+CREATE TABLE `all_in_one`.`company_general_categories` (
+  `idcompany_general_categories` INT NOT NULL,
+  `id_company` INT NOT NULL,
+  `id_general_categories` INT NOT NULL,
+  `status` INT NULL,
+  PRIMARY KEY (`idcompany_general_categories`));
+
+  ALTER TABLE `all_in_one`.`general_categories` 
+CHANGE COLUMN `idgeneral_categories` `idgeneral_categories` INT NOT NULL AUTO_INCREMENT ;
+
+ALTER TABLE `all_in_one`.`company_general_categories` 
+CHANGE COLUMN `idcompany_general_categories` `idcompany_general_categories` INT NOT NULL AUTO_INCREMENT ;
+
+ALTER TABLE `all_in_one`.`category` 
+ADD COLUMN `id_general_category` INT NOT NULL AFTER `id_company`;
+
+
+ALTER TABLE `all_in_one`.`produtcs` 
+CHANGE COLUMN `id_cod_catalog` `id_cod_catalog` VARCHAR(45) NULL ;
+
+ALTER TABLE `all_in_one`.`produtcs` 
+CHANGE COLUMN `description` `description` LONGTEXT NOT NULL ;
+
+ALTER TABLE `all_in_one`.`produtcs` 
+RENAME TO  `all_in_one`.`products` ;
+
+CREATE TABLE `all_in_one`.`product_images` (
+  `product_images_id` INT NOT NULL AUTO_INCREMENT,
+  `product_id` INT NOT NULL,
+  `url` VARCHAR(250) NOT NULL,
+  `name` VARCHAR(250) NOT NULL,
+  `order` INT NOT NULL,
+  `status` INT NOT NULL,
+  UNIQUE INDEX `product_images_id_UNIQUE` (`product_images_id` ASC) VISIBLE,
+  PRIMARY KEY (`product_images_id`));
+
+
+ALTER TABLE `all_in_one`.`features` 
+ADD COLUMN `id_feauture` INT NOT NULL AUTO_INCREMENT FIRST,
+CHANGE COLUMN `id_catalogo` `id_catalogo` INT NULL ,
+ADD PRIMARY KEY (`id_feauture`);
+;
