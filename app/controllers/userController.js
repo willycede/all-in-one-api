@@ -91,9 +91,59 @@ const loginAdmin = async (req,res) => {
   
 };
 
+const getUserById = async (req,res) => {
+  try {
+    const id_users = req.params.id;
+    if (!id_users){
+      return response.error(req,res,{message: 'El parametro id es requerido'}, 422)
+    }
+    const user = await userModel.getUserById({
+      id_users
+    });
+    if (!user) {
+      return response.error(req,res,{message: 'No se encontro un usuario para el id proporcionado'}, 422)
+    }
+    return response.success(req,res,user[0],200)
+  } catch (error) {
+    return response.error(req,res,{message:`getUserById: ${error.message}`}, 422)
+  }
+  
+};
+
+const updateUserInfo = async (req,res) => {
+  try {
+    const body = req.body;
+    if (!body.email){
+      return response.error(req,res,{message: 'El email es requerido'}, 422)
+    }
+    if (!body.id_users){
+      return response.error(req,res,{message: 'El id del usuario es requerido'}, 422)
+    }
+    const id_users = parseInt(body.id_users);
+    const existsUserWithNewEmail = await userModel.getUserByEmail({
+      email: body.email
+    });
+    if (existsUserWithNewEmail && existsUserWithNewEmail.id_users !=  id_users) {
+      return response.error(req,res,{message: 'Ya existe un usuario con el email ingresado'}, 422);
+    }
+    const user = await userModel.getUserById({
+      id_users: body.id_users,
+    });
+    const userData = user[0];
+    userData.email = body.email;
+    const userUpdated = await userModel.updateUser({user:userData});
+    return response.success(req,res,userUpdated[0],200)
+  } catch (error) {
+    return response.error(req,res,{message:`getUserById: ${error.message}`}, 422)
+  }
+  
+};
+
 module.exports = {  
   createUser,
   getUserByEmail,
   login,
-  loginAdmin
+  loginAdmin,
+  getUserById,
+  updateUserInfo
 };
