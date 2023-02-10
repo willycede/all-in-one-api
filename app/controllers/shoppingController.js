@@ -1,9 +1,15 @@
 const shoppingModel = require('../models/shopping')
 const response = require('../config/response');
 
+const SibApiV3Sdk = require('sib-api-v3-sdk');
+
+
 require('dotenv').config()
 
 const axios = require('axios');
+
+//git config --global user.email "eduardo.eduardomayorga.mayorga@gmail.com"
+//git config --global user.name "emayorga1991"
 
 
 const createShoppingCarCtr = async (req, res) => {
@@ -216,6 +222,40 @@ const getShoppCarDetails = async (req, res) => {
     }
 }
 
+
+const sendMailShoppingCar = async (req, res) => {
+
+    const body = req.body;
+    //console.log(body);
+
+    let defaultClient = SibApiV3Sdk.ApiClient.instance;
+
+    let apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey = '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';
+
+    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+    sendSmtpEmail.subject = "ALL IN ONE";
+    sendSmtpEmail.htmlContent = body.html;
+    sendSmtpEmail.sender = {"name":"John Doe","email":"eduardo.eduardomayorga.mayorga@gmail.com"};
+    sendSmtpEmail.to = [{"email":body.email,"name":"Jane Doe"}];
+
+    apiInstance.sendTransacEmail(sendSmtpEmail).then(function(data) {
+        //console.log('API called successfully. Returned data: ' + JSON.stringify(data));
+        const jsonResp = {
+            url: 'API called successfully. Returned data: ' + JSON.stringify(data),
+            errorCode:200
+        }
+ 
+        return res.status(200).send(jsonResp)
+
+    }, function(error) {
+        return res.status(200).send(error.response.data)
+    });
+
+}
+
 const ShppoingCarUrlPay = async (req, res) => {
 
    
@@ -223,6 +263,7 @@ const ShppoingCarUrlPay = async (req, res) => {
     try {
 
         const body = req.body;
+        //console.log(body);
 
         var data = JSON.stringify({
             "amount": body.amount,
@@ -238,6 +279,8 @@ const ShppoingCarUrlPay = async (req, res) => {
             "expireIn": 0
         });
 
+        
+
         var config = {
             method: 'post',
             url: process.env.PAYURL,
@@ -247,6 +290,8 @@ const ShppoingCarUrlPay = async (req, res) => {
             },
             data: data
         };
+
+       // console.log(config);
 
         const respuesta = await axios(config);
         const jsonResp = {
@@ -288,5 +333,6 @@ module.exports = {
     getShoppCar,
     getShoppCarDetails,
     ShppoingCarUrlPay,
-    putUpdateShoppingPay
+    putUpdateShoppingPay,
+    sendMailShoppingCar,
 }
