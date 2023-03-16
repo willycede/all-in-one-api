@@ -10,6 +10,7 @@
   "author": "Dev Team",
   "license": "ISC",
   "dependencies": {
+    "@sendinblue/client": "^3.2.2",
     "aws-sdk": "^2.879.0",
     "axios": "^0.27.2",
     "bcryptjs": "^2.4.3",
@@ -31,6 +32,7 @@
     "mysql2": "^2.2.5",
     "nodemon": "^2.0.5",
     "npm": "^6.14.8",
-    "sharp": "^0.28.1"
+    "sharp": "^0.28.1",
+    "sib-api-v3-sdk": "^8.5.0"
   }
 }
