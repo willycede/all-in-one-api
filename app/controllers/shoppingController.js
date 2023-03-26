@@ -231,7 +231,7 @@ const sendMailShoppingCar = async (req, res) => {
     let defaultClient = SibApiV3Sdk.ApiClient.instance;
 
     let apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey = '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';
+    apiKey.apiKey =  process.env.SENDMAILTOKEN;
 
     let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
     let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
