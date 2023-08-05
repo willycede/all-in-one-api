@@ -131,6 +131,7 @@ const updateUserInfo = async (req,res) => {
     });
     const userData = user[0];
     userData.email = body.email;
+    userData.address = body.address ? body.address : userData.address;
     const userUpdated = await userModel.updateUser({user:userData});
     return response.success(req,res,userUpdated[0],200)
   } catch (error) {
