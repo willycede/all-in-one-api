@@ -39,9 +39,15 @@ const getProductsByProductId = async(req,res)=>{
 
             errorMessage='El id de producto no puede ser nulo,vacio o cero'
             return response.error(req,res,{message:errorMessage, validationObject}, 422)
-
         }
-        const product = await productModel.getProductsByProductId(product_id)
+        const product = await productModel.getProductsByProductId(product_id);
+        if(!product || (product && product.length ===0) ){
+            errorMessage='El id de producto no se encuentra registrado';
+            return response.error(req,res,{message:errorMessage, validationObject}, 422)
+        }
+        const listImages = await productModel.getListImagesByProductId(product[0].id_products);
+        product[0].images = listImages;
+        
         return response.success(req,res,product,200)
     } catch (error) {
         return response.error(req,res,{message:`getProductsByProductId: ${error.message}`},422)
