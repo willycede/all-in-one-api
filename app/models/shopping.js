@@ -212,6 +212,8 @@ const createShoppingDetailsMetodo = async (
 
 };
 
+
+
 module.exports = {
     getShoppingCar, 
     getShoppingCarActiveByUser,

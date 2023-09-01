@@ -1,9 +1,15 @@
 const shoppingModel = require('../models/shopping')
 const response = require('../config/response');
 
+const SibApiV3Sdk = require('sib-api-v3-sdk');
+
+
 require('dotenv').config()
 
 const axios = require('axios');
+
+//git config --global user.email "eduardo.eduardomayorga.mayorga@gmail.com"
+//git config --global user.name "emayorga1991"
 
 
 const createShoppingCarCtr = async (req, res) => {
@@ -96,13 +102,13 @@ const createShoppingCarDetailsCtr = async (req, res) => {
             const shopCarDetails = await shoppingModel.getShopDetailsCarByIdShop(body.id_shopping_car);
 
             /* obtenemos detalles ingresados para calcular totales */
-            for(var attributename in shopCarDetails){
+            for (var attributename in shopCarDetails) {
 
                 subtotalshop = subtotalshop + parseFloat(shopCarDetails[attributename].details_subtotal);
                 totalival = totalival + parseFloat(shopCarDetails[attributename].details_iva);
                 total = total + parseFloat(shopCarDetails[attributename].details_total);
                 totaldiscount = totaldiscount + parseFloat(shopCarDetails[attributename].details_discount);
-            
+
             }
 
             let id_shopping_car = body.id_shopping_car;
@@ -112,10 +118,10 @@ const createShoppingCarDetailsCtr = async (req, res) => {
                 "id_user": id_user,
                 "shopping_car_quantity": 0,
                 "shopping_car_subtotal": parseFloat(subtotalshop).toFixed(6),
-                "shopping_car_total_discount":parseFloat(totaldiscount).toFixed(6),
+                "shopping_car_total_discount": parseFloat(totaldiscount).toFixed(6),
                 "shopping_car_iva": parseFloat(totalival).toFixed(6),
                 "shopping_car_total": parseFloat(total).toFixed(6),
-                "status": 1             
+                "status": 1
             }
 
             /*actualizamos los detalles */
@@ -123,8 +129,8 @@ const createShoppingCarDetailsCtr = async (req, res) => {
                 id_shopping_car,
                 {
                     body
-                }               
-                
+                }
+
             );
 
             RegistroShopDetails = createdShoppDetails;
@@ -144,13 +150,13 @@ const createShoppingCarDetailsCtr = async (req, res) => {
             const shopCarDetails = await shoppingModel.getShopDetailsCarByIdShop(body.id_shopping_car);
 
             /* obtenemos detalles ingresados para calcular totales */
-            for(var attributename in shopCarDetails){
+            for (var attributename in shopCarDetails) {
 
                 subtotalshop = subtotalshop + parseFloat(shopCarDetails[attributename].details_subtotal);
                 totalival = totalival + parseFloat(shopCarDetails[attributename].details_iva);
                 total = total + parseFloat(shopCarDetails[attributename].details_total);
                 totaldiscount = totaldiscount + parseFloat(shopCarDetails[attributename].details_discount);
-            
+
             }
 
             let id_shopping_car = body.id_shopping_car;
@@ -160,10 +166,10 @@ const createShoppingCarDetailsCtr = async (req, res) => {
                 "id_user": id_user,
                 "shopping_car_quantity": 0,
                 "shopping_car_subtotal": parseFloat(subtotalshop).toFixed(6),
-                "shopping_car_total_discount":parseFloat(totaldiscount).toFixed(6),
+                "shopping_car_total_discount": parseFloat(totaldiscount).toFixed(6),
                 "shopping_car_iva": parseFloat(totalival).toFixed(6),
                 "shopping_car_total": parseFloat(total).toFixed(6),
-                "status": 1             
+                "status": 1
             }
 
             /*actualizamos los detalles */
@@ -171,8 +177,8 @@ const createShoppingCarDetailsCtr = async (req, res) => {
                 id_shopping_car,
                 {
                     body
-                }               
-                
+                }
+
             );
 
             RegistroShopDetails = UpdateShoppDetails;
@@ -216,13 +222,47 @@ const getShoppCarDetails = async (req, res) => {
     }
 }
 
-const ShppoingCarUrlPay = async (req, res) => {
 
-   
+const sendMailShoppingCar = async (req, res) => {
+
+    const body = req.body;
+    //console.log(body);
+
+    let defaultClient = SibApiV3Sdk.ApiClient.instance;
+
+    let apiKey = defaultClient.authentications['api-key'];
+    apiKey.apiKey =  process.env.SENDMAILTOKEN;
+
+    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+    sendSmtpEmail.subject = "ALL IN ONE";
+    sendSmtpEmail.htmlContent = body.html;
+    sendSmtpEmail.sender = { "name": "John Doe", "email": "eduardo.eduardomayorga.mayorga@gmail.com" };
+    sendSmtpEmail.to = [{ "email": body.email, "name": "Jane Doe" }];
+
+    apiInstance.sendTransacEmail(sendSmtpEmail).then(function (data) {
+        //console.log('API called successfully. Returned data: ' + JSON.stringify(data));
+        const jsonResp = {
+            url: 'API called successfully. Returned data: ' + JSON.stringify(data),
+            errorCode: 200
+        }
+
+        return res.status(200).send(jsonResp)
+
+    }, function (error) {
+        console.log(error);
+        return res.status(200).send(error.response.data)
+    });
+
+}
+
+const ShppoingCarUrlPay = async (req, res) => {
 
     try {
 
         const body = req.body;
+        //console.log(body);
 
         var data = JSON.stringify({
             "amount": body.amount,
@@ -238,6 +278,8 @@ const ShppoingCarUrlPay = async (req, res) => {
             "expireIn": 0
         });
 
+
+
         var config = {
             method: 'post',
             url: process.env.PAYURL,
@@ -248,12 +290,14 @@ const ShppoingCarUrlPay = async (req, res) => {
             data: data
         };
 
+        // console.log(config);
+
         const respuesta = await axios(config);
         const jsonResp = {
             url: respuesta.data,
-            errorCode:200
+            errorCode: 200
         }
- 
+
         return res.status(200).send(jsonResp)
     } catch (error) {
         return res.status(200).send(error.response.data)
@@ -261,25 +305,47 @@ const ShppoingCarUrlPay = async (req, res) => {
 
 }
 
-const putUpdateShoppingPay = async (req, res) =>{
+const putUpdateShoppingPay = async (req, res) => {
 
-    var body = req.body;
-    let id_shopping_car = body.id_shopping_car;
+    try {
 
-    body = {
-        "url_payphone": body.url_payphone,
-        "status": body.status            
+        var body = req.body;
+
+
+
+        let id_shopping_car = body.id_shopping_car;
+
+        body = {
+            "url_payphone": body.url_payphone,
+            "status": body.status
+        }
+
+
+
+        const respuesta = await shoppingModel.putShoppingUpdatePay(
+            id_shopping_car,
+            {
+                body
+            }
+
+        );
+
+        
+        const jsonResp = {
+            url: respuesta.body,
+            errorCode: 200
+        }
+
+        return res.status(200).send(jsonResp)
+    } catch (error) {
+        console.log(error);
+        return res.status(200).send(error.response.data)
     }
 
-    await shoppingModel.putShoppingUpdate(
-        id_shopping_car,
-        {
-            body
-        }               
-        
-    );
-
 }
+
+
+
 
 
 module.exports = {
@@ -288,5 +354,6 @@ module.exports = {
     getShoppCar,
     getShoppCarDetails,
     ShppoingCarUrlPay,
-    putUpdateShoppingPay
+    putUpdateShoppingPay,
+    sendMailShoppingCar,
 }
