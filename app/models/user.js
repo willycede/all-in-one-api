@@ -7,6 +7,14 @@ const moment = require('moment');
 const { createCompanyUser } = require("./company_users");
 const { createUserRol } = require("./user_rol");
 
+const SibApiV3Sdk = require('sib-api-v3-sdk');
+
+
+require('dotenv').config()
+
+const axios = require('axios');
+const { emailConfig } = require("../email/recoveryPasswordEmail");
+
 const getUserByEmailRolClient= async ({email}) => {
   return await knex('users')
   .join('company_users', 'company_users.id_users', 'users.id_users')
@@ -171,6 +179,38 @@ const validateUserLoginData = async ({email, password, isAdmin, company_id}) => 
       errorMessage
     };
 }
+const sendResetPasswordEmail = async ({user}) => {
+
+  let defaultClient = SibApiV3Sdk.ApiClient.instance;
+
+  let apiKey = defaultClient.authentications['api-key'];
+  apiKey.apiKey =  process.env.SENDMAILTOKEN;
+
+  let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+  let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+  const min = Math.ceil(10000000);
+  const max = Math.floor(100000000);
+  const newPassword =  Math.floor(Math.random() * (max - min) + min);
+
+  sendSmtpEmail.subject = "ALL IN ONE RECUPERACIÓN DE CLAVE";
+  sendSmtpEmail.htmlContent = emailConfig.html_body.replace("newPassword", newPassword);
+  sendSmtpEmail.sender = { "name": "John Doe", "email": "eduardo.eduardomayorga.mayorga@gmail.com" };
+  sendSmtpEmail.to = [{ "email": user.email, "name": user.name_user }];
+
+  apiInstance.sendTransacEmail(sendSmtpEmail).then(async function (data) {
+      //console.log('API called successfully. Returned data: ' + JSON.stringify(data));
+      user.password = bcrypt.hashSync(newPassword.toString(), 10);
+      await updateUser({user});
+      const jsonResp = {
+          url: 'API called successfully. Returned data: ' + JSON.stringify(data),
+          errorCode: 200
+      }
+
+  }, function (error) {
+      console.log(error);
+  });
+
+}
 const validateUserData = async ({
   body,
   isAdmin,
@@ -269,5 +309,6 @@ module.exports = {
   validateUserData,
   createUserLogic, 
   validateUserLoginData,
-  getUserByEmailRolClient
+  getUserByEmailRolClient,
+  sendResetPasswordEmail
 };
