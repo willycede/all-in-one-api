@@ -31,6 +31,26 @@ const createUser = async (req,res) => {
   }
   
 };
+const resetPassword = async (req,res) => {
+  try {
+    const body = req.body;
+    const email = body.email;
+    if(!email){
+      return response.error(req,res,{message:'El email es requerido', validationObject: {}}, 422)
+    }
+    const user = await userModel.getUserByEmail({
+      email
+    });
+    if(!user) {
+      return response.error(req,res,{message:`No se encontro un usuario asociado al email ${email}`, validationObject: {}}, 422)
+    }
+    await userModel.sendResetPasswordEmail({user})
+    return response.success(req,res,user,200)
+  } catch (error) {
+    return response.error(req,res,{message:`LoginError: ${error.message}`}, 422)
+  }
+  
+};
 const login = async (req,res) => {
   try {
     const body = req.body;
@@ -132,6 +152,9 @@ const updateUserInfo = async (req,res) => {
     const userData = user[0];
     userData.email = body.email;
     userData.address = body.address ? body.address : userData.address;
+    if(body.password){
+      userData.password = bcrypt.hashSync(body.password, 10);
+    }
     const userUpdated = await userModel.updateUser({user:userData});
     return response.success(req,res,userUpdated[0],200)
   } catch (error) {
@@ -146,5 +169,6 @@ module.exports = {
   login,
   loginAdmin,
   getUserById,
-  updateUserInfo
+  updateUserInfo,
+  resetPassword
 };
