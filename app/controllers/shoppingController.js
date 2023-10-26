@@ -196,6 +196,51 @@ const createShoppingCarDetailsCtr = async (req, res) => {
 
 };
 
+const createInvoiceDataCtr = async (req, res) => {
+
+    let validationObject = {}
+    try {
+
+        
+        const body = req.body;
+
+        /*Validamos si existe un registro previo de un carrito activo al usuario */
+
+        var id_user = body.id_user
+
+        if (id_user > 0) {
+
+            
+
+                /*Insertamos la cabecera */
+
+                const validatedData = await shoppingModel.validateInvoceData({
+                    body
+                });
+
+                if (Object.entries(validatedData.validationObject).length > 0 || validatedData.errorMessage) {
+                    return response.error(req, res, { message: validatedData.errorMessage, validationObject: validatedData.validationObject }, 422);
+                }
+
+                const createdDataInvoice = await shoppingModel.createInvoiceData(
+                    {
+                        body
+                    }
+                );
+
+                RegistroDataInvoice = createdDataInvoice;
+
+
+        }
+
+        return response.success(req, res, RegistroDataInvoice, 200);
+    } catch (error) {
+        return response.error(req, res, { message: `createdDataInoiceError: ${error.message}`, validationObject }, 422)
+        return response.error(req, res, { message: `createdDataInoiceError: ${error.message}` }, 422)
+    }
+
+};
+
 const getShoppCar = async (req, res) => {
     try {
 
@@ -209,6 +254,22 @@ const getShoppCar = async (req, res) => {
     }
 }
 
+
+const getShoppCarById = async (req, res) => {
+    try {
+
+        console.log(req.params);
+        const id_orden = parseInt(req.params.id_orden);
+        console.log(id_orden);
+
+        const shopCar = await shoppingModel.getShoppingCar(id_orden)
+        return response.success(req, res, shopCar, 200)
+
+    } catch (error) {
+        return response.error(req, res, { message: `getShoppCarById: ${error.message}` }, 422)
+    }
+}
+
 const getShoppCarDetails = async (req, res) => {
     try {
 
@@ -219,6 +280,19 @@ const getShoppCarDetails = async (req, res) => {
 
     } catch (error) {
         return response.error(req, res, { message: `getShopDetails: ${error.message}` }, 422)
+    }
+}
+
+const getInvoiceData = async (req, res) => {
+    try {
+
+        const id_user = parseInt(req.params.id_user);
+
+        const shopDataUserInvoice = await shoppingModel.getInvoiceData(id_user)
+        return response.success(req, res, shopDataUserInvoice, 200)
+
+    } catch (error) {
+        return response.error(req, res, { message: `getInvoiceData: ${error.message}` }, 422)
     }
 }
 
@@ -251,9 +325,61 @@ const sendMailShoppingCar = async (req, res) => {
         return res.status(200).send(jsonResp)
 
     }, function (error) {
-        console.log(error);
+        //console.log(error);
         return res.status(200).send(error.response.data)
     });
+
+}
+
+const ShppoingCarUrlPayConfirm = async (req, res) => {
+
+    try {
+
+        const body = req.body;
+        let orden = body.orden;
+
+        var data = JSON.stringify({
+            "id": body.id,
+            "clientTxId": body.clientId
+        });
+
+
+
+        var config = {
+            method: 'post',
+            url: process.env.PAYURLBTNCONFIRM,
+            headers: {
+                'Authorization': 'Bearer ' + process.env.PAYTOKENBTN,
+                'Content-Type': 'application/json'
+            },
+            data: data
+        };
+
+         //console.log(config);
+
+        const respuesta = await axios(config);
+
+        /* actualizamos el estado de pago del registro de pedido, si el estus de codigo es statusCode 3 */
+
+
+        if(respuesta.data.statusCode){
+
+            const UpdateShopCar = await shoppingModel.putShoppingUpdatePago(
+                orden
+            );
+        }
+
+
+
+        const jsonResp = {
+            url: respuesta.data,
+            errorCode: 200
+        }
+
+        return res.status(200).send(jsonResp)
+    } catch (error) {
+        return res.status(200).send(error.response.data)
+    }
 
 }
 
@@ -265,6 +391,7 @@ const ShppoingCarUrlPay = async (req, res) => {
         //console.log(body);
 
         var data = JSON.stringify({
+            "responseUrl": "http://localhost:8080/payment/ValidatePayment",
             "amount": body.amount,
             "tax": body.tax,
             "amountWithTax": body.amountWithTax,
@@ -282,19 +409,19 @@ const ShppoingCarUrlPay = async (req, res) => {
 
         var config = {
             method: 'post',
-            url: process.env.PAYURL,
+            url: process.env.PAYURLBTN,
             headers: {
-                'Authorization': 'Bearer ' + process.env.PAYTOKEN,
+                'Authorization': 'Bearer ' + process.env.PAYTOKENBTN,
                 'Content-Type': 'application/json'
             },
             data: data
         };
 
-        // console.log(config);
+       
 
         const respuesta = await axios(config);
         const jsonResp = {
-            url: respuesta.data,
+            url: respuesta.data.payWithPayPhone,
             errorCode: 200
         }
 
@@ -344,6 +471,45 @@ const putUpdateShoppingPay = async (req, res) => {
 
 }
 
+const putUpdateInoviceState = async (req, res) => {
+
+    try {
+
+        var body = req.body;
+
+        console.log(body);
+
+
+
+        let id_shopping_car = body.orden;
+
+        body = {
+            "status_invoice": 1
+        }
+
+
+
+        const respuesta = await shoppingModel.putShoppingUpdateStateInovoice(
+            id_shopping_car,
+            {
+                body
+            }
+
+        );
+
+        
+        const jsonResp = {
+            url: respuesta.body,
+            errorCode: 200
+        }
+
+        return res.status(200).send(jsonResp)
+    } catch (error) {
+        console.log(error);
+        return res.status(200).send(error.response.data)
+    }
+
+}
 
 
 
@@ -351,9 +517,14 @@ const putUpdateShoppingPay = async (req, res) => {
 module.exports = {
     createShoppingCarCtr,
     createShoppingCarDetailsCtr,
+    createInvoiceDataCtr,
     getShoppCar,
+    getShoppCarById,
     getShoppCarDetails,
+    getInvoiceData,
     ShppoingCarUrlPay,
     putUpdateShoppingPay,
+    putUpdateInoviceState,
+    ShppoingCarUrlPayConfirm,
     sendMailShoppingCar,
 }
