@@ -1,3 +1,5 @@
+const fs = require('fs');
+
 const shoppingModel = require('../models/shopping')
 const response = require('../config/response');
 
@@ -7,6 +9,7 @@ const SibApiV3Sdk = require('sib-api-v3-sdk');
 require('dotenv').config()
 
 const axios = require('axios');
+const path = require('path');
 
 //git config --global user.email "eduardo.eduardomayorga.mayorga@gmail.com"
 //git config --global user.name "emayorga1991"
@@ -297,10 +300,64 @@ const getInvoiceData = async (req, res) => {
 }
 
 
+const sendMailShoppFactura = async (req, res) => { 
+
+    const body = req.body; 
+    let defaultClient = SibApiV3Sdk.ApiClient.instance; 
+    let apiKey = defaultClient.authentications['api-key']; 
+    apiKey.apiKey = process.env.SENDMAILTOKEN; 
+    
+    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi(); 
+    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail(); 
+    sendSmtpEmail.subject = "ALL IN ONE"; 
+    sendSmtpEmail.htmlContent = body.html; 
+    sendSmtpEmail.sender = { name: "All In One", email: "eduardo.eduardomayorga.mayorga@gmail.com" }; 
+    sendSmtpEmail.to = [{ email: body.email, name: "All In One" }]; 
+    
+    const pathPdf = body.pathPdf;
+    const pathXml = body.pathXml;
+   
+   
+    try { 
+        const [base64Pdf, base64Xml] = await Promise.all([ 
+            fs.promises.readFile(pathPdf, { encoding: 'base64' }), 
+            fs.promises.readFile(pathXml, { encoding: 'base64' }) 
+        ]); 
+        
+        
+        sendSmtpEmail.attachment = [
+            { 
+                name: path.basename(pathPdf), 
+                content: base64Pdf 
+            }, 
+            { 
+                name: path.basename(pathXml), 
+                content: base64Xml 
+            } 
+        ]; 
+        
+        apiInstance.sendTransacEmail(sendSmtpEmail) 
+        .then(function (data) { 
+            const jsonResp = 
+            { 
+                url: 'API called successfully. Returned data: ' + JSON.stringify(data), 
+                errorCode: 200 
+            }; 
+            return res.status(200).send(jsonResp); 
+        })
+        .catch(function (error) {
+             return res.status(500).send(error.response.data); 
+            }); 
+        } catch (error) {
+             console.error('Error al leer los archivos:', error); 
+             return res.status(500).send({ message: 'Error al leer los archivos', error }); 
+        } 
+};
+
+
 const sendMailShoppingCar = async (req, res) => {
 
     const body = req.body;
-    //console.log(body);
 
     let defaultClient = SibApiV3Sdk.ApiClient.instance;
 
@@ -312,11 +369,10 @@ const sendMailShoppingCar = async (req, res) => {
 
     sendSmtpEmail.subject = "ALL IN ONE";
     sendSmtpEmail.htmlContent = body.html;
-    sendSmtpEmail.sender = { "name": "John Doe", "email": "eduardo.eduardomayorga.mayorga@gmail.com" };
-    sendSmtpEmail.to = [{ "email": body.email, "name": "Jane Doe" }];
+    sendSmtpEmail.sender = { "name": "All In One", "email": "eduardo.eduardomayorga.mayorga@gmail.com" };
+    sendSmtpEmail.to = [{ "email": body.email, "name": "All In One" }];
 
     apiInstance.sendTransacEmail(sendSmtpEmail).then(function (data) {
-        //console.log('API called successfully. Returned data: ' + JSON.stringify(data));
         const jsonResp = {
             url: 'API called successfully. Returned data: ' + JSON.stringify(data),
             errorCode: 200
@@ -325,7 +381,7 @@ const sendMailShoppingCar = async (req, res) => {
         return res.status(200).send(jsonResp)
 
     }, function (error) {
-        //console.log(error);
+        console.log(error);
         return res.status(200).send(error.response.data)
     });
 
@@ -381,6 +437,39 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
         return res.status(200).send(error.response.data)
     }
 
+}
+
+
+const getInoviceE = async (req, res) => {
+    try {
+
+        
+        const id_orden = parseInt(req.params.id_orden);
+        
+        //console.log(id_orden);
+
+        var config = {
+            method: 'post',
+            url: process.env.URLAPIFELECTRONICA,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            params: {
+                codigo: id_orden,
+                path: process.env.PATHCOMPROBANTE,
+                namefile:'factura',
+                jasper_file:process.env.PATHJASPER
+            }
+        };
+
+        const respuesta = await axios(config);
+        //const jsonResp = respuesta.data
+
+        return res.status(200).send(respuesta.data)
+
+    } catch (error) {
+        return response.error(req, res, { message: `getInoviceE: ${error.message}` }, 422)
+    }
 }
 
 const ShppoingCarUrlPay = async (req, res) => {
@@ -527,4 +616,6 @@ module.exports = {
     putUpdateInoviceState,
     ShppoingCarUrlPayConfirm,
     sendMailShoppingCar,
+    sendMailShoppFactura,
+    getInoviceE,
 }
