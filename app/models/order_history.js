@@ -28,7 +28,7 @@ const deleteOrderHistoryModel = async (id_shopping_car, id_user, trx) => {
     .where('id_shopping_car', '=', id_shopping_car)
     .update(
     {
-        status:3
+        status:4
     });
 
     return await getOrderHistory(id_user);
