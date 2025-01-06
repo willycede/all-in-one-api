@@ -480,7 +480,7 @@ const ShppoingCarUrlPay = async (req, res) => {
         //console.log(body);
 
         var data = JSON.stringify({
-            "responseUrl": "http://localhost:8080/payment/ValidatePayment",
+            "responseUrl": "http://45.134.226.190:8082/payment/ValidatePayment",
             "amount": body.amount,
             "tax": body.tax,
             "amountWithTax": body.amountWithTax,
