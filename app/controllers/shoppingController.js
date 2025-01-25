@@ -627,5 +627,4 @@ module.exports = {
     sendMailShoppingCar,
     sendMailShoppFactura,
     getInoviceE,
-    sendMailOrderAdmin
 }
