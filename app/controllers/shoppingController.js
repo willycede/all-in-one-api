@@ -373,13 +373,22 @@ const sendMailShoppingCar = async (req, res) => {
     sendSmtpEmail.to = [{ "email": body.email, "name": "All In One" }];
 
     apiInstance.sendTransacEmail(sendSmtpEmail).then(function (data) {
-        const jsonResp = {
-            url: 'API called successfully. Returned data: ' + JSON.stringify(data),
-            errorCode: 200
-        }
-
-        return res.status(200).send(jsonResp)
-
+        const adminEmails = process.env.ADMIN_EMAILS.split(',');
+        const emailsToSend = adminEmails.map(email => {
+            return {
+                "email": email,
+                "name": "All In One"
+            }
+        });
+        sendSmtpEmail.to = emailsToSend;
+        sendSmtpEmail.subject = "ALL IN ONE - Nueva orden del usuario con email: " + body.email + " y nombre: " + body.name;
+        apiInstance.sendTransacEmail(sendSmtpEmail).then(function (data) {
+            const jsonResp2 = {
+                url: 'API called successfully. Returned data: ' + JSON.stringify(data),
+                errorCode: 200
+            }
+            return res.status(200).send(jsonResp2)
+        })
     }, function (error) {
         console.log(error);
         return res.status(200).send(error.response.data)
@@ -618,4 +627,5 @@ module.exports = {
     sendMailShoppingCar,
     sendMailShoppFactura,
     getInoviceE,
+    sendMailOrderAdmin
 }
