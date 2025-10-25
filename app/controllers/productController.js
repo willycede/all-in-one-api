@@ -1,4 +1,5 @@
 const productModel = require('../models/products')
+const citiesModel = require('../models/cities')
 const response = require('../config/response');
 const { off } = require('npm');
 
@@ -47,6 +48,16 @@ const getProductsByProductId = async(req,res)=>{
         }
         const listImages = await productModel.getListImagesByProductId(product[0].id_products);
         product[0].images = listImages;
+        
+        // Validate and fetch allowed cities if the field has a value
+        if(product[0].allowed_cities && product[0].allowed_cities.trim() !== '') {
+            const cityIdsArray = product[0].allowed_cities.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+            console.log(cityIdsArray)
+            if(cityIdsArray.length > 0) {
+                const cities = await citiesModel.getCitiesByIds(cityIdsArray);
+                product[0].cities = cities;
+            }
+        }
         
         return response.success(req,res,product,200)
     } catch (error) {
