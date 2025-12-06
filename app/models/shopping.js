@@ -101,7 +101,8 @@ const getShopDetailsCarByIdShop = async (id_shopping_car) => {
         status: generalConstants.STATUS_ACTIVE
     }
 
-    return await knex('shopping_car_details as d')
+    // Get cart details with product info
+    const cartDetails = await knex('shopping_car_details as d')
         .join('products as p', 'p.id_products', 'd.id_product')
         .join('product_images as pi', 'pi.product_id', 'p.id_products')
         .select
@@ -109,7 +110,8 @@ const getShopDetailsCarByIdShop = async (id_shopping_car) => {
             'd.id_product','p.cod_products','p.name','p.description', 
             'd.id_details', 'd.id_shopping_car','d.details_quantity',
             'd.details_price','d.details_discount','d.details_subtotal',
-            'd.details_iva','d.details_total','pi.url','pi.name as name_img'
+            'd.details_iva','d.details_total','pi.url','pi.name as name_img',
+            'p.required_documents'
         )
         .where(
             {
@@ -117,6 +119,39 @@ const getShopDetailsCarByIdShop = async (id_shopping_car) => {
                 'd.status': generalConstants.STATUS_ACTIVE
             }
         );
+
+    // If no cart details, return empty array
+    if (!cartDetails || cartDetails.length === 0) {
+        return [];
+    }
+
+    // Get all cart detail IDs
+    const cartDetailIds = cartDetails.map(detail => detail.id_details);
+
+    // Get all documents for these cart details
+    const documents = await knex('cart_detail_documents')
+        .whereIn('cart_detail_id', cartDetailIds)
+        .where('status', generalConstants.STATUS_ACTIVE)
+        .select('*');
+
+    // Group documents by cart_detail_id
+    const documentsByCartDetail = {};
+    documents.forEach(doc => {
+        if (!documentsByCartDetail[doc.cart_detail_id]) {
+            documentsByCartDetail[doc.cart_detail_id] = [];
+        }
+        documentsByCartDetail[doc.cart_detail_id].push(doc);
+    });
+
+    // Add documents to each cart detail
+    const cartDetailsWithDocuments = cartDetails.map(detail => {
+        return {
+            ...detail,
+            uploaded_documents: documentsByCartDetail[detail.id_details] || []
+        };
+    });
+
+    return cartDetailsWithDocuments;
 
 };
 

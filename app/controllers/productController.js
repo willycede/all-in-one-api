@@ -52,11 +52,22 @@ const getProductsByProductId = async(req,res)=>{
         // Validate and fetch allowed cities if the field has a value
         if(product[0].allowed_cities && product[0].allowed_cities.trim() !== '') {
             const cityIdsArray = product[0].allowed_cities.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
-            console.log(cityIdsArray)
             if(cityIdsArray.length > 0) {
                 const cities = await citiesModel.getCitiesByIds(cityIdsArray);
                 product[0].cities = cities;
             }
+        }
+        
+        // Parse and return required_documents as an array
+        if(product[0].required_documents && product[0].required_documents.trim() !== '') {
+            product[0].required_documents_array = product[0].required_documents
+                .split(',')
+                .map(doc => doc.trim())
+                .filter(doc => doc !== '');
+            product[0].required_documents_count = product[0].required_documents_array.length;
+        } else {
+            product[0].required_documents_array = [];
+            product[0].required_documents_count = 0;
         }
         
         return response.success(req,res,product,200)

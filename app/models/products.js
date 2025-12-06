@@ -33,7 +33,7 @@ const getProductsByGeneralCategoryId = async (category_id) => {
     const queryToExcecute = knex('products as p')
     .leftJoin('features as f', 'f.id_products', 'p.id_products')
     .join('category as cat', 'cat.id_category', 'f.id_category')
-    .select('p.id_products','p.cod_products','p.name','p.description', 'cat.id_category', 'p.price')
+    .select('p.id_products','p.cod_products','p.name','p.description', 'cat.id_category', 'p.price', 'p.required_documents')
     .where({ 'cat.id_general_category':category_id});
     return await queryToExcecute.orderBy('p.name', 'asc');
 }

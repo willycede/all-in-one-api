@@ -1,5 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
+const path = require("path");
 const router = require("./app/routes/routes")
 const models = require("./app/models/migrations")
 const app = express();
@@ -8,10 +9,12 @@ const cors = require('cors');
 
 app.use(bodyParser.json());
 
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use(morgan("dev"));
 app.use(cors());
-app.use(function(err,req,res,nex){
+app.use(function(err,req,res,next){
   if(err.code ==="LIMIT_FILE_TYPES"){
     res.status(422).json({error:"Solo se permiten archivos de tipo imagen"})
     return
