@@ -2,6 +2,7 @@ const userModel =  require("../models/user")
 const response = require('../config/response');
 const jwt = require("jsonwebtoken");
 const moment = require("moment");
+const { getClientIp } = require('./legalDocumentController');
 require('dotenv').config()
 const getUserByEmail = async ({email}) => {
     
@@ -22,14 +23,18 @@ const createUser = async (req,res) => {
     const createdUser = await userModel.createUserLogic(
       {
         body,
-        isAdmin
+        isAdmin,
+        consentContext: {
+          ip: getClientIp(req),
+          user_agent: req.headers['user-agent'] || null,
+        },
       }
     );
     return response.success(req, res, createdUser, 200);
   } catch (error) {
     return response.error(req,res,{message:`createUserError: ${error.message}`}, 422)
   }
-  
+
 };
 const resetPassword = async (req,res) => {
   try {

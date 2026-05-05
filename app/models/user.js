@@ -8,6 +8,7 @@ const { createCompanyUser } = require("./company_users");
 const { createUserRol } = require("./user_rol");
 
 const SibApiV3Sdk = require('sib-api-v3-sdk');
+const legalDocumentModel = require('./legalDocument');
 
 
 require('dotenv').config()
@@ -244,6 +245,19 @@ const validateUserData = async ({
   if(userDb){
       errorMessage= `El usuario con email ${body.email} ya existe en nuestros registros`;
   }
+
+  if (!isAdmin) {
+    const requiredDocs = (await legalDocumentModel.getActiveDocuments())
+      .filter((doc) => doc.is_required);
+    const submittedConsents = Array.isArray(body.consents) ? body.consents : [];
+    const missing = requiredDocs.filter((doc) =>
+      !submittedConsents.some((c) => c.document_key === doc.document_key && c.version === doc.version)
+    );
+    if (missing.length > 0) {
+      validationObject.consents = `Debes aceptar: ${missing.map((d) => d.title).join(', ')}`;
+    }
+  }
+
   return {
     validationObject,
     errorMessage
@@ -254,6 +268,7 @@ const createUserLogic = async (
   {
     body,
     isAdmin,
+    consentContext,
   }
 ) => {
   try {
@@ -267,7 +282,7 @@ const createUserLogic = async (
          password: userPassword,
          created_at: new Date(Date.now()),
      }
- 
+
      const token = jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '60d'});
      const timestamp = moment().add(60, 'days').unix();
      user.access_token= token;
@@ -281,21 +296,33 @@ const createUserLogic = async (
      user.access_token= token2;
      user.token_expires_in=timestamp2;
      await updateUser({user});
- 
- 
+
+
      //Se debe asociar el user al rol admin o al rol client
      const userAssociateWithCompany = await createCompanyUser(body.company_id, user.id_users, constants.STATUS_ACTIVE);
-     await createUserRol(userAssociateWithCompany &&  userAssociateWithCompany.length > 0 
-       ? userAssociateWithCompany[0].id_company_user : null, 
+     await createUserRol(userAssociateWithCompany &&  userAssociateWithCompany.length > 0
+       ? userAssociateWithCompany[0].id_company_user : null,
        isAdmin ? constants.ADMIN_ROL: constants.CLIENT_ROL
      );
- 
+
+     if (!isAdmin && Array.isArray(body.consents)) {
+       for (const consent of body.consents) {
+         await legalDocumentModel.recordConsent({
+           id_users: user.id_users,
+           document_key: consent.document_key,
+           version: consent.version,
+           ip: consentContext?.ip || null,
+           user_agent: consentContext?.user_agent || null,
+         });
+       }
+     }
+
      return user;
   } catch (error) {
     console.log("createUserLogic error", error?.message ? error?.message : error)
     throw error;
   }
-   
+
 }
 module.exports = { 
   getUserByEmail,

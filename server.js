@@ -9,8 +9,15 @@ const cors = require('cors');
 
 app.use(bodyParser.json());
 
+// Trust the first proxy (e.g. nginx in Contabo) so req.ip resolves the real client IP
+// for legal consent audit trail
+app.set('trust proxy', 1);
+
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve legal documents (privacy policy, data treatment consent, etc.)
+app.use('/legal', express.static(path.join(__dirname, 'legal')));
 
 app.use(morgan("dev"));
 app.use(cors());
