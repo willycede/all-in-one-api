@@ -1,15 +1,33 @@
 const db = require('../db/knex');
 const path = require('path');
 
-const runMigrations = async () => {
-	const [batchNo, log] = await db.migrate.latest({
-		directory: path.join(__dirname, '../db/migrations'),
-	});
+const isExistingSchemaError = (error) => {
+	const message = error?.message || '';
+	return (
+		error?.code === 'ER_TABLE_EXISTS'
+		|| error?.errno === 1050
+		|| /already exists/i.test(message)
+	);
+};
 
-	if (log.length === 0) {
-		console.log('Database migrations: already up to date');
-	} else {
-		console.log(`Database migrations applied (batch ${batchNo}):`, log.join(', '));
+const runMigrations = async () => {
+	try {
+		const [batchNo, log] = await db.migrate.latest({
+			directory: path.join(__dirname, '../db/migrations'),
+		});
+
+		if (log.length === 0) {
+			console.log('Database migrations: already up to date');
+		} else {
+			console.log(`Database migrations applied (batch ${batchNo}):`, log.join(', '));
+		}
+	} catch (error) {
+		if (isExistingSchemaError(error)) {
+			console.warn('[migrations] migrate:latest detenido: tablas ya existen sin historial Knex.');
+			console.warn('[migrations] En producción ejecuta: npm run migrate:baseline && npm run migrate:favorites');
+		} else {
+			console.error('[migrations] Error en migrate:latest:', error.message);
+		}
 	}
 };
 

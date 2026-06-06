@@ -41,7 +41,7 @@ const startServer = async () => {
     await models.testDB();
   } catch (error) {
     console.error('Error al conectar o migrar la base de datos:', error.message);
-    console.error('Reinicia la API cuando MySQL esté disponible o ejecuta: npm run migrate');
+    console.error('Reinicia la API cuando MySQL esté disponible o ejecuta: npm run migrate:favorites');
   }
 
   app.listen(PORT, () => {

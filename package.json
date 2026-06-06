@@ -7,7 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon server.js",
     "migrate": "knex migrate:latest",
-    "migrate:rollback": "knex migrate:rollback"
+    "migrate:rollback": "knex migrate:rollback",
+    "migrate:favorites": "node app/db/scripts/ensure_user_favorites.js",
+    "migrate:baseline": "node app/db/scripts/baseline_migrations.js"
   },
   "author": "Dev Team",
   "license": "ISC",
