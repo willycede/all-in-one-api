@@ -2,10 +2,10 @@ const db = require('../db/knex');
 const path = require('path');
 
 const isExistingSchemaError = (error) => {
-	const message = error?.message || '';
+	const message = (error && error.message) || '';
 	return (
-		error?.code === 'ER_TABLE_EXISTS'
-		|| error?.errno === 1050
+		(error && error.code === 'ER_TABLE_EXISTS')
+		|| (error && error.errno === 1050)
 		|| /already exists/i.test(message)
 	);
 };

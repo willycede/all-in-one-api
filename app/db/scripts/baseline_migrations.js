@@ -52,7 +52,7 @@ async function baseline() {
 	}
 
 	const batchRow = await db('knex_migrations').max('batch as maxBatch').first();
-	const batch = (batchRow?.maxBatch || 0) + 1;
+	const batch = ((batchRow && batchRow.maxBatch) || 0) + 1;
 	const now = new Date();
 
 	await db('knex_migrations').insert(
