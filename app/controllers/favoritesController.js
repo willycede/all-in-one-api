@@ -2,10 +2,18 @@ const favoritesModel = require('../models/favorites');
 const response = require('../config/response');
 
 const friendlyMessage = (error) => {
-	if (error.code === 'ER_NO_SUCH_TABLE' || /doesn't exist/i.test(error.message || '')) {
+	const msg = (error && error.message) || 'Error al procesar favoritos';
+	if (error && (error.code === 'ER_NO_SUCH_TABLE' || /doesn't exist/i.test(msg))) {
 		return 'Los favoritos no están disponibles. Reinicia la API para aplicar las migraciones.';
 	}
-	return error.message;
+	if (/^select\s/i.test(msg)) {
+		return 'No se pudieron cargar los favoritos. Intenta de nuevo.';
+	}
+	const dashIdx = msg.lastIndexOf(' - ');
+	if (dashIdx > 0 && /select\s/i.test(msg)) {
+		return msg.slice(dashIdx + 3) || 'Error al procesar favoritos';
+	}
+	return msg;
 };
 
 const getFavorites = async (req, res) => {

@@ -1,5 +1,6 @@
 const knex = require('../db/knex');
 const generalConstants = require('../constants/constants');
+const productsModel = require('./products');
 
 const mapFavoriteRow = (row) => ({
 	id_favorite: row.id_favorite,
@@ -11,6 +12,12 @@ const mapFavoriteRow = (row) => ({
 	image: row.image || '',
 });
 
+const attachProductImage = async (row) => {
+	const images = await productsModel.getListImagesByProductId(row.id_product);
+	const image = images && images.length > 0 ? (images[0].url || '') : '';
+	return mapFavoriteRow({ ...row, image });
+};
+
 const getFavoriteById = async (id_favorite) => {
 	const row = await knex('user_favorites as f')
 		.join('products as p', 'p.id_products', 'f.id_product')
@@ -20,15 +27,7 @@ const getFavoriteById = async (id_favorite) => {
 			'f.id_product',
 			'p.name',
 			'p.description',
-			'p.price',
-			knex.raw(`(
-				SELECT pi.url
-				FROM product_images pi
-				WHERE pi.product_id = p.id_products
-				AND pi.status = ?
-				ORDER BY pi.id ASC
-				LIMIT 1
-			) as image`, [generalConstants.STATUS_ACTIVE])
+			'p.price'
 		)
 		.where({
 			'id_favorite': id_favorite,
@@ -37,7 +36,11 @@ const getFavoriteById = async (id_favorite) => {
 		})
 		.first();
 
-	return row ? mapFavoriteRow(row) : null;
+	if (!row) {
+		return null;
+	}
+
+	return attachProductImage(row);
 };
 
 const getFavoritesByUser = async (id_user) => {
@@ -49,15 +52,7 @@ const getFavoritesByUser = async (id_user) => {
 			'f.id_product',
 			'p.name',
 			'p.description',
-			'p.price',
-			knex.raw(`(
-				SELECT pi.url
-				FROM product_images pi
-				WHERE pi.product_id = p.id_products
-				AND pi.status = ?
-				ORDER BY pi.id ASC
-				LIMIT 1
-			) as image`, [generalConstants.STATUS_ACTIVE])
+			'p.price'
 		)
 		.where({
 			'f.id_user': id_user,
@@ -66,7 +61,7 @@ const getFavoritesByUser = async (id_user) => {
 		})
 		.orderBy('f.created_at', 'desc');
 
-	return rows.map(mapFavoriteRow);
+	return Promise.all(rows.map((row) => attachProductImage(row)));
 };
 
 const addFavorite = async ({ id_user, id_product }) => {
@@ -94,7 +89,19 @@ const addFavorite = async ({ id_user, id_product }) => {
 				updated_at: knex.fn.now(),
 			});
 
-		return getFavoriteById(existing.id_favorite);
+		try {
+			return await getFavoriteById(existing.id_favorite);
+		} catch (error) {
+			return mapFavoriteRow({
+				id_favorite: existing.id_favorite,
+				id_user,
+				id_product,
+				name: product.name,
+				description: product.description,
+				price: product.price,
+				image: '',
+			});
+		}
 	}
 
 	const inserted = await knex('user_favorites').insert({
@@ -105,7 +112,19 @@ const addFavorite = async ({ id_user, id_product }) => {
 		updated_at: knex.fn.now(),
 	});
 
-	return getFavoriteById(inserted[0]);
+	try {
+		return await getFavoriteById(inserted[0]);
+	} catch (error) {
+		return mapFavoriteRow({
+			id_favorite: inserted[0],
+			id_user,
+			id_product,
+			name: product.name,
+			description: product.description,
+			price: product.price,
+			image: '',
+		});
+	}
 };
 
 const removeFavorite = async ({ id_user, id_product, id_favorite }) => {
