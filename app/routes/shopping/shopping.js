@@ -15,6 +15,7 @@ router.post("/payphone/confirm", shopController.ShppoingCarUrlPayConfirm);
 router.post("/payphone/invoice/state", shopController.putUpdateInoviceState);
 router.post("/sendmail", shopController.sendMailShoppingCar);
 router.post("/sendmail_factura", shopController.sendMailShoppFactura);
+router.post("/delete_shoppDetails", shopController.deleteShoppingCarDetailCtr);
 router.get("/get_comprobante_electronico/:id_orden", shopController.getInoviceE);
 
 

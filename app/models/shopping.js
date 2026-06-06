@@ -353,6 +353,83 @@ const createShoppingDetailsMetodo = async (
 
 };
 
+const recalculateShoppingCarTotals = async (id_shopping_car, trx) => {
+    const shopCarDetails = await getShopDetailsCarByIdShop(id_shopping_car);
+
+    let subtotalshop = 0;
+    let totalival = 0;
+    let total = 0;
+    let totaldiscount = 0;
+
+    for (const detail of shopCarDetails) {
+        subtotalshop += parseFloat(detail.details_subtotal) || 0;
+        totalival += parseFloat(detail.details_iva) || 0;
+        total += parseFloat(detail.details_total) || 0;
+        totaldiscount += parseFloat(detail.details_discount) || 0;
+    }
+
+    const shoppingCar = await (trx || knex)('shopping_car')
+        .where({ id_shopping_car })
+        .first();
+
+    const body = {
+        id_user: shoppingCar?.id_user,
+        shopping_car_quantity: shopCarDetails.length,
+        shopping_car_subtotal: parseFloat(subtotalshop).toFixed(6),
+        shopping_car_total_discount: parseFloat(totaldiscount).toFixed(6),
+        shopping_car_iva: parseFloat(totalival).toFixed(6),
+        shopping_car_total: parseFloat(total).toFixed(6),
+        status: shoppingCar?.status || generalConstants.STATUS_ACTIVE,
+        url_payphone: shoppingCar?.url_payphone,
+    };
+
+    await putShoppingUpdate(id_shopping_car, { body }, trx);
+
+    return shopCarDetails;
+};
+
+const deleteShoppingCarDetail = async ({ id_details, id_shopping_car, id_user }, trx) => {
+    const detail = await (trx || knex)('shopping_car_details')
+        .where({
+            id_details,
+            id_shopping_car,
+            status: generalConstants.STATUS_ACTIVE,
+        })
+        .first();
+
+    if (!detail) {
+        throw new Error('El detalle del carrito no existe o ya fue eliminado');
+    }
+
+    const shoppingCar = await (trx || knex)('shopping_car')
+        .where({ id_shopping_car })
+        .first();
+
+    if (!shoppingCar) {
+        throw new Error('El carrito no existe');
+    }
+
+    if (id_user && parseInt(shoppingCar.id_user, 10) !== parseInt(id_user, 10)) {
+        throw new Error('No tiene permisos para modificar este carrito');
+    }
+
+    await (trx || knex)('shopping_car_details')
+        .where({ id_details })
+        .update({
+            status: generalConstants.STATUS_INACTIVE,
+            updated_at: knex.fn.now(),
+        });
+
+    await (trx || knex)('cart_detail_documents')
+        .where({ cart_detail_id: id_details })
+        .update({
+            status: generalConstants.STATUS_INACTIVE,
+            deleted_at: knex.fn.now(),
+        });
+
+    return recalculateShoppingCarTotals(id_shopping_car, trx);
+};
+
 
 
 module.exports = {
@@ -371,4 +448,6 @@ module.exports = {
     putShoppingUpdatePay,
     putShoppingUpdatePago,
     putShoppingUpdateStateInovoice,
+    deleteShoppingCarDetail,
+    recalculateShoppingCarTotals,
 }

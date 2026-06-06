@@ -612,6 +612,30 @@ const putUpdateInoviceState = async (req, res) => {
 
 
 
+const deleteShoppingCarDetailCtr = async (req, res) => {
+    try {
+        const body = req.body;
+
+        if (!body.id_details) {
+            return response.error(req, res, { message: 'El id del detalle es requerido' }, 422);
+        }
+        if (!body.id_shopping_car) {
+            return response.error(req, res, { message: 'El id del carrito es requerido' }, 422);
+        }
+
+        const cartDetails = await shoppingModel.deleteShoppingCarDetail({
+            id_details: parseInt(body.id_details, 10),
+            id_shopping_car: parseInt(body.id_shopping_car, 10),
+            id_user: body.id_user ? parseInt(body.id_user, 10) : null,
+        });
+
+        return response.success(req, res, cartDetails, 200);
+    } catch (error) {
+        return response.error(req, res, { message: `deleteShoppingCarDetail: ${error.message}` }, 422);
+    }
+};
+
+
 module.exports = {
     createShoppingCarCtr,
     createShoppingCarDetailsCtr,
@@ -627,4 +651,5 @@ module.exports = {
     sendMailShoppingCar,
     sendMailShoppFactura,
     getInoviceE,
+    deleteShoppingCarDetailCtr,
 }
