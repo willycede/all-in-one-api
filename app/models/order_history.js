@@ -19,7 +19,7 @@ const getOrderHistoryPaginated = async (id_user, page = 1, limit = DEFAULT_LIMIT
 		.count({ total: 'id_shopping_car' })
 		.first();
 
-	const total = Number(countResult?.total || 0);
+	const total = Number((countResult && countResult.total) || 0);
 	const totalPages = total === 0 ? 0 : Math.ceil(total / safeLimit);
 
 	const items = await knex

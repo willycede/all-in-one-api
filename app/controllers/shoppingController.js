@@ -2,6 +2,7 @@ const fs = require('fs');
 
 const shoppingModel = require('../models/shopping')
 const response = require('../config/response');
+const cartValidation = require('../helpers/cartValidation');
 
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 
@@ -424,26 +425,22 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
 
         const respuesta = await axios(config);
 
-        /* actualizamos el estado de pago del registro de pedido, si el estus de codigo es statusCode 3 */
-
-
-        if(respuesta.data.statusCode){
-
-            const UpdateShopCar = await shoppingModel.putShoppingUpdatePago(
-                orden
-            );
+        if (respuesta.data && respuesta.data.statusCode) {
+            await shoppingModel.putShoppingUpdatePago(orden);
         }
-
-
 
         const jsonResp = {
             url: respuesta.data,
-            errorCode: 200
-        }
+            errorCode: 200,
+            success: true,
+        };
 
-        return res.status(200).send(jsonResp)
+        return res.status(200).send(jsonResp);
     } catch (error) {
-        return res.status(200).send(error.response.data)
+        const message = (error.response && error.response.data && error.response.data.message)
+            || error.message
+            || 'No se pudo confirmar el pago';
+        return response.error(req, res, { message, success: false }, 422);
     }
 
 }
@@ -486,10 +483,28 @@ const ShppoingCarUrlPay = async (req, res) => {
     try {
 
         const body = req.body;
-        //console.log(body);
+
+        const orden = body.clientTransactionId ? String(body.clientTransactionId).split('@')[0] : null;
+        if (orden) {
+            const docValidation = await cartValidation.validateShoppingCartDocuments(parseInt(orden, 10));
+            if (!docValidation.valid) {
+                const missingItems = docValidation.items
+                    .filter((item) => item.requires_documents && !item.valid)
+                    .map((item) => `${item.product_name}: ${item.missing_documents.join(', ')}`)
+                    .join('; ');
+
+                return response.error(req, res, {
+                    message: `Faltan documentos obligatorios antes de pagar. ${missingItems}`,
+                    validation: docValidation,
+                }, 422);
+            }
+        }
+
+        const responseUrl = process.env.PAYPHONE_RESPONSE_URL
+            || `${process.env.FRONTEND_URL || 'http://localhost:8082'}/payment/ValidatePayment`;
 
         var data = JSON.stringify({
-            "responseUrl": "http://45.134.226.190:8082/payment/ValidatePayment",
+            "responseUrl": responseUrl,
             "amount": body.amount,
             "tax": body.tax,
             "amountWithTax": body.amountWithTax,
@@ -523,12 +538,15 @@ const ShppoingCarUrlPay = async (req, res) => {
             errorCode: 200
         }
 
-        return res.status(200).send(jsonResp)
+        return res.status(200).send(jsonResp);
     } catch (error) {
-        return res.status(200).send(error.response.data)
+        const message = (error.response && error.response.data && error.response.data.message)
+            || error.message
+            || 'No se pudo generar el link de pago';
+        return response.error(req, res, { message }, 422);
     }
 
-}
+};
 
 const putUpdateShoppingPay = async (req, res) => {
 
