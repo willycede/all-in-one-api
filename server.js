@@ -34,11 +34,19 @@ app.get("/", (req, res) => {
   res.json({ message: "Welcome to all in one api." });
 });
 
-models.testDB();
-
-
-// set port, listen for requests
 const PORT = process.env.PORT || 3500;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}.`);
-});
+
+const startServer = async () => {
+  try {
+    await models.testDB();
+  } catch (error) {
+    console.error('Error al conectar o migrar la base de datos:', error.message);
+    console.error('Reinicia la API cuando MySQL esté disponible o ejecuta: npm run migrate');
+  }
+
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}.`);
+  });
+};
+
+startServer();

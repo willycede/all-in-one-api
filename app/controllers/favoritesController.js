@@ -1,6 +1,13 @@
 const favoritesModel = require('../models/favorites');
 const response = require('../config/response');
 
+const friendlyMessage = (error) => {
+	if (error.code === 'ER_NO_SUCH_TABLE' || /doesn't exist/i.test(error.message || '')) {
+		return 'Los favoritos no están disponibles. Reinicia la API para aplicar las migraciones.';
+	}
+	return error.message;
+};
+
 const getFavorites = async (req, res) => {
 	try {
 		const id_user = parseInt(req.params.id_user, 10);
@@ -11,7 +18,7 @@ const getFavorites = async (req, res) => {
 		const favorites = await favoritesModel.getFavoritesByUser(id_user);
 		return response.success(req, res, favorites, 200);
 	} catch (error) {
-		return response.error(req, res, { message: `getFavorites: ${error.message}` }, 422);
+		return response.error(req, res, { message: friendlyMessage(error) }, 422);
 	}
 };
 
@@ -33,7 +40,7 @@ const addFavorite = async (req, res) => {
 
 		return response.success(req, res, favorite, 200);
 	} catch (error) {
-		return response.error(req, res, { message: error.message }, 422);
+		return response.error(req, res, { message: friendlyMessage(error) }, 422);
 	}
 };
 
@@ -53,7 +60,7 @@ const removeFavorite = async (req, res) => {
 
 		return response.success(req, res, result, 200);
 	} catch (error) {
-		return response.error(req, res, { message: error.message }, 422);
+		return response.error(req, res, { message: friendlyMessage(error) }, 422);
 	}
 };
 
@@ -65,7 +72,7 @@ const checkFavorite = async (req, res) => {
 		const isFavorite = await favoritesModel.isProductFavorite(id_user, id_product);
 		return response.success(req, res, { isFavorite }, 200);
 	} catch (error) {
-		return response.error(req, res, { message: `checkFavorite: ${error.message}` }, 422);
+		return response.error(req, res, { message: friendlyMessage(error) }, 422);
 	}
 };
 
