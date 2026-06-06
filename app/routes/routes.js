@@ -19,6 +19,7 @@ const features = require('./features/features')
 const generalCategories = require('./general_categories/general_categories')
 const product_documents = require('./product_documents/product_documents')
 const legal_documents = require('./legal_documents/legal_documents')
+const favorites = require('./favorites/favorites')
 const api = '/api'
 
 require('dotenv').config()
@@ -44,6 +45,7 @@ const routes = function (server){
     server.use(`${api}/generalCategories`, generalCategories);
     server.use(`${api}/product_documents`, product_documents);
     server.use(`${api}/legal_documents`, legal_documents);
+    server.use(`${api}/favorites`, favorites);
 }
 
 // Authorization: Bearer <token>
