@@ -32,6 +32,7 @@ const getUserByEmailRolClient= async ({email}) => {
     'users.recovery_pass',
     'users.access_token',
     'users.token_expires_in',
+    'users.two_factor_enabled',
     'user_rol.id_rol',
     'user_rol.id_user_rol',
     'company_users.id_company_user'
@@ -86,6 +87,7 @@ const getUserByCompanyAndEmail = async ({company_id, email}) => {
       'users.recovery_pass',
       'users.access_token',
       'users.token_expires_in',
+      'users.two_factor_enabled',
       'user_rol.id_rol',
       'user_rol.id_user_rol',
       'company_users.id_company_user'

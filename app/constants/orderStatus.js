@@ -1,0 +1,8 @@
+const ORDER_STATUS = {
+	ACTIVE_CART: 1,
+	PENDING_PAYMENT: 2,
+	PAID: 3,
+	CANCELLED: 4,
+};
+
+module.exports = ORDER_STATUS;

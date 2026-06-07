@@ -1,6 +1,8 @@
 const orderHistoriModel = require('../models/order_history');
 const orderInvoiceModel = require('../models/order_invoice');
 const orderRepeatModel = require('../models/order_repeat');
+const userModel = require('../models/user');
+const { trySendOrderCancelledEmail } = require('../helpers/orderCancellationEmail');
 const response = require('../config/response');
 
 const getOrdersHistory = async (req, res) => {
@@ -20,15 +22,23 @@ const deleteHistory = async (req, res) => {
 		const id_user = parseInt(req.params.id_user, 10);
 		const { page, limit } = req.query;
 
-		const order = await orderHistoriModel.deleteOrderHistoryModel(
+		const result = await orderHistoriModel.cancelOrderForUser(
 			id_shopping_car,
 			id_user,
 			page,
 			limit
 		);
-		return response.success(req, res, order, 200);
+
+		const users = await userModel.getUserById({ id_users: id_user });
+		const user = users && users[0];
+
+		if (user && user.email) {
+			await trySendOrderCancelledEmail({ user, order: result.order });
+		}
+
+		return response.success(req, res, result.paginated, 200);
 	} catch (error) {
-		return response.error(req, res, { message: `deleteOrderHistoryModel: ${error.message}` }, 422);
+		return response.error(req, res, { message: error.message }, 422);
 	}
 };
 

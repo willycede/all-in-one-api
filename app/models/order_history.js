@@ -1,4 +1,5 @@
 const knex = require('../db/knex');
+const ORDER_STATUS = require('../constants/orderStatus');
 
 const DEFAULT_LIMIT = 10;
 const ALLOWED_LIMITS = [10, 20, 50];
@@ -43,16 +44,51 @@ const getOrderHistoryPaginated = async (id_user, page = 1, limit = DEFAULT_LIMIT
 	};
 };
 
-const deleteOrderHistoryModel = async (id_shopping_car, id_user, page, limit, trx) => {
-	await (trx || knex)('shopping_car')
-		.where('id_shopping_car', '=', id_shopping_car)
-		.update({ status: 4 });
+const cancelOrderForUser = async (id_shopping_car, id_user, page, limit, trx) => {
+	const db = trx || knex;
+	const order = await db('shopping_car')
+		.where({ id_shopping_car, id_user })
+		.first();
 
-	return getOrderHistoryPaginated(id_user, page, limit);
+	if (!order) {
+		throw new Error('Orden no encontrada');
+	}
+
+	const status = parseInt(order.status, 10);
+
+	if (status === ORDER_STATUS.CANCELLED) {
+		throw new Error('La orden ya está cancelada');
+	}
+
+	if (status === ORDER_STATUS.PAID) {
+		throw new Error('No se puede cancelar una orden ya pagada');
+	}
+
+	if (status !== ORDER_STATUS.PENDING_PAYMENT) {
+		throw new Error('Solo puedes cancelar pedidos pendientes de pago');
+	}
+
+	await db('shopping_car')
+		.where({ id_shopping_car })
+		.update({
+			status: ORDER_STATUS.CANCELLED,
+			url_payphone: null,
+			updated_at: knex.fn.now(),
+		});
+
+	const paginated = await getOrderHistoryPaginated(id_user, page, limit);
+
+	return {
+		order,
+		paginated,
+	};
 };
+
+const deleteOrderHistoryModel = cancelOrderForUser;
 
 module.exports = {
 	getOrderHistoryPaginated,
+	cancelOrderForUser,
 	deleteOrderHistoryModel,
 	DEFAULT_LIMIT,
 	ALLOWED_LIMITS,

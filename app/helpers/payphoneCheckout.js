@@ -1,15 +1,19 @@
 const axios = require('axios');
+const knex = require('../db/knex');
 const cartValidation = require('./cartValidation');
 const couponsModel = require('../models/coupons');
 const shoppingModel = require('../models/shopping');
+const ORDER_STATUS = require('../constants/orderStatus');
 const {
 	normalizePayphoneAmounts,
 	buildPayphoneAmountsFromParts,
 	toCents,
 } = require('./payphoneAmounts');
 
-const ORDER_STATUS_PENDING_PAYMENT = 2;
-const ORDER_STATUS_ACTIVE_CART = 1;
+const ORDER_STATUS_PENDING_PAYMENT = ORDER_STATUS.PENDING_PAYMENT;
+const ORDER_STATUS_ACTIVE_CART = ORDER_STATUS.ACTIVE_CART;
+const ORDER_STATUS_PAID = ORDER_STATUS.PAID;
+const ORDER_STATUS_CANCELLED = ORDER_STATUS.CANCELLED;
 
 const buildClientTransactionId = (orderId) => `${orderId}@${Date.now()}`;
 
@@ -176,6 +180,23 @@ const validateOrderForPayment = async (orderId, { sentSubtotalCents } = {}) => {
 
 const assertPayableOrderStatus = (cart, { allowActiveCart = true } = {}) => {
 	const status = parseInt(cart.status, 10);
+
+	if (status === ORDER_STATUS_CANCELLED) {
+		logPayphoneFailure('order_cancelled', { orderId: cart.id_shopping_car, status });
+		throw createPayphoneError(
+			'Esta orden fue cancelada. El enlace de pago ya no está disponible.',
+			{ step: 'order_cancelled', statusCode: 410, details: { status } }
+		);
+	}
+
+	if (status === ORDER_STATUS_PAID) {
+		logPayphoneFailure('order_paid', { orderId: cart.id_shopping_car, status });
+		throw createPayphoneError(
+			'Esta orden ya fue pagada.',
+			{ step: 'order_paid', statusCode: 410, details: { status } }
+		);
+	}
+
 	const allowed = allowActiveCart
 		? [ORDER_STATUS_ACTIVE_CART, ORDER_STATUS_PENDING_PAYMENT]
 		: [ORDER_STATUS_PENDING_PAYMENT];
@@ -187,6 +208,47 @@ const assertPayableOrderStatus = (cart, { allowActiveCart = true } = {}) => {
 			{ step: 'order_status', statusCode: 422, details: { status, allowed } }
 		);
 	}
+};
+
+const resolvePaymentLink = async ({ orderId, payphoneUrl }) => {
+	let cart;
+
+	if (orderId) {
+		cart = await getOrderForPayment(orderId, null);
+	} else if (payphoneUrl) {
+		cart = await knex('shopping_car')
+			.where({ url_payphone: payphoneUrl })
+			.first();
+
+		if (!cart) {
+			logPayphoneFailure('payment_link_not_found', { payphoneUrl: payphoneUrl.slice(0, 80) });
+			throw createPayphoneError(
+				'Enlace de pago no encontrado o expirado',
+				{ step: 'payment_link_not_found', statusCode: 404 }
+			);
+		}
+	} else {
+		throw createPayphoneError(
+			'Parámetros de enlace inválidos',
+			{ step: 'validation', statusCode: 422 }
+		);
+	}
+
+	assertPayableOrderStatus(cart, { allowActiveCart: false });
+
+	const url = cart.url_payphone || payphoneUrl;
+	if (!url || !String(url).startsWith('http')) {
+		logPayphoneFailure('no_payment_url', { orderId: cart.id_shopping_car });
+		throw createPayphoneError(
+			'No hay un enlace de pago activo. Genera uno nuevo desde Mis pedidos.',
+			{ step: 'no_payment_url', statusCode: 422 }
+		);
+	}
+
+	return {
+		url,
+		orderId: cart.id_shopping_car,
+	};
 };
 
 const buildPreparePayload = ({
@@ -343,6 +405,8 @@ const preparePaymentLink = async ({
 module.exports = {
 	ORDER_STATUS_PENDING_PAYMENT,
 	ORDER_STATUS_ACTIVE_CART,
+	ORDER_STATUS_PAID,
+	ORDER_STATUS_CANCELLED,
 	buildClientTransactionId,
 	buildPayphoneAmountsFromCart,
 	isDuplicateClientTransactionError,
@@ -352,6 +416,7 @@ module.exports = {
 	getOrderForPayment,
 	validateOrderForPayment,
 	assertPayableOrderStatus,
+	resolvePaymentLink,
 	buildPreparePayload,
 	callPayphonePrepare,
 	preparePaymentLink,

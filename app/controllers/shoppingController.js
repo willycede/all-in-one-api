@@ -510,7 +510,20 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
     try {
 
         const body = req.body;
-        let orden = body.orden;
+        const orden = body.orden;
+
+        const cartRows = await shoppingModel.getShoppingCar(orden);
+        const cart = cartRows && cartRows[0];
+
+        if (!cart) {
+            return response.error(req, res, {
+                message: 'Orden no encontrada',
+                success: false,
+                step: 'order_not_found',
+            }, 404);
+        }
+
+        payphoneCheckout.assertPayableOrderStatus(cart, { allowActiveCart: false });
 
         var data = JSON.stringify({
             "id": body.id,
@@ -549,7 +562,11 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
         const message = (error.response && error.response.data && error.response.data.message)
             || error.message
             || 'No se pudo confirmar el pago';
-        return response.error(req, res, { message, success: false }, 422);
+        return response.error(req, res, {
+            message,
+            success: false,
+            step: error.step || undefined,
+        }, error.statusCode || 422);
     }
 
 }
@@ -604,6 +621,10 @@ const ShppoingCarUrlPay = async (req, res) => {
 
         const userId = req.userInfo && req.userInfo.id_users;
         const sentSubtotalCents = parseInt(body.amountWithTax, 10);
+
+        if (body.delivery) {
+            await shoppingModel.updateOrderDelivery(orderId, body.delivery);
+        }
 
         const result = await payphoneCheckout.preparePaymentLink({
             orderId,
@@ -792,6 +813,45 @@ const deleteShoppingCarDetailCtr = async (req, res) => {
 };
 
 
+const resolvePaymentLink = async (req, res) => {
+    try {
+        const orderId = parseInt(req.query.orden, 10) || null;
+        let payphoneUrl = req.query.urlPago || null;
+
+        if (payphoneUrl) {
+            try {
+                payphoneUrl = decodeURIComponent(String(payphoneUrl));
+            } catch (decodeError) {
+                payphoneUrl = String(payphoneUrl);
+            }
+        }
+
+        const result = await payphoneCheckout.resolvePaymentLink({
+            orderId: orderId && !Number.isNaN(orderId) ? orderId : null,
+            payphoneUrl,
+        });
+
+        return res.status(200).send({
+            url: result.url,
+            orderId: result.orderId,
+            errorCode: 200,
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 422;
+        const payload = payphoneCheckout.toPayphoneHttpPayload(
+            error,
+            'No se pudo validar el enlace de pago'
+        );
+        payphoneCheckout.logPayphoneFailure('controller_resolve_link', {
+            orderId: req.query && req.query.orden,
+            statusCode,
+            ...payload,
+        });
+        return response.error(req, res, payload, statusCode);
+    }
+};
+
+
 module.exports = {
     createShoppingCarCtr,
     createShoppingCarDetailsCtr,
@@ -802,6 +862,7 @@ module.exports = {
     getInvoiceData,
     ShppoingCarUrlPay,
     regeneratePayphoneLink,
+    resolvePaymentLink,
     putUpdateShoppingPay,
     putUpdateInoviceState,
     ShppoingCarUrlPayConfirm,

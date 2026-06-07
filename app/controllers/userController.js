@@ -3,6 +3,7 @@ const response = require('../config/response');
 const jwt = require("jsonwebtoken");
 const moment = require("moment");
 const { getClientIp } = require('./legalDocumentController');
+const { handleLoginAfterCredentials } = require('../helpers/authSession');
 require('dotenv').config()
 const getUserByEmail = async ({email}) => {
     
@@ -68,19 +69,8 @@ const login = async (req,res) => {
     const user = await userModel.getUserByEmailRolClient({
       email
     });
-    user.id_users = user.id_users;
-    const token= jwt.sign({
-      id_users: user.id_users,
-      name_user: user.name_user,
-      last_name_user: user.last_name_user,
-      identification_number: user.identification_number,
-      email: user.email,
-    }, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
-    const timestamp = moment().add(720, 'days').unix();
-    user.access_token= token;
-    user.token_expires_in=timestamp;
-    await userModel.updateUserSessionData({user})
-    return response.success(req,res,user,200)
+    user.two_factor_enabled = !!user.two_factor_enabled;
+    return handleLoginAfterCredentials(req, res, user, { isAdmin: false });
   } catch (error) {
     return response.error(req,res,{message:`LoginError: ${error.message}`}, 422)
   }
@@ -102,14 +92,8 @@ const loginAdmin = async (req,res) => {
       email,
       company_id
     });
-    user.id_users = user.id_users;
-    const token= jwt.sign({user}, process.env.JWT_SECRET_KEY, {expiresIn: '720d'});
-    const timestamp = moment().add(720, 'days').unix();
-    user.access_token= token;
-    user.token_expires_in=timestamp;
-    await userModel.updateUserSessionData({user})
-
-    return response.success(req,res,user,200)
+    user.two_factor_enabled = !!user.two_factor_enabled;
+    return handleLoginAfterCredentials(req, res, user, { isAdmin: true });
   } catch (error) {
     return response.error(req,res,{message:`LoginError: ${error.message}`}, 422)
   }

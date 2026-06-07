@@ -430,6 +430,20 @@ const deleteShoppingCarDetail = async ({ id_details, id_shopping_car, id_user },
     return recalculateShoppingCarTotals(id_shopping_car, trx);
 };
 
+const updateOrderDelivery = async (id_shopping_car, delivery = {}, trx) => {
+    await (trx || knex)('shopping_car')
+        .where({ id_shopping_car })
+        .update({
+            use_delivery_address: !!delivery.use_delivery_address,
+            delivery_address: delivery.delivery_address || null,
+            delivery_recipient_name: delivery.delivery_recipient_name || null,
+            delivery_recipient_phone: delivery.delivery_recipient_phone || null,
+            updated_at: knex.fn.now(),
+        });
+
+    return getShoppingCar(id_shopping_car);
+};
+
 
 
 module.exports = {
@@ -450,4 +464,5 @@ module.exports = {
     putShoppingUpdateStateInovoice,
     deleteShoppingCarDetail,
     recalculateShoppingCarTotals,
+    updateOrderDelivery,
 }
