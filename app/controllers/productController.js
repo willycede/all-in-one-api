@@ -54,31 +54,35 @@ const getProductsByProductId = async(req,res)=>{
             errorMessage='El id de producto no se encuentra registrado';
             return response.error(req,res,{message:errorMessage, validationObject}, 422)
         }
-        const listImages = await productModel.getListImagesByProductId(product[0].id_products);
-        product[0].images = listImages;
+        const editData = await productModel.getProductEditData(product_id);
+        const responseProduct = editData ? [editData] : product;
+        const listImages = editData && editData.images ? editData.images : await productModel.getListImagesByProductId(product[0].id_products);
+        if (responseProduct[0]) {
+            responseProduct[0].images = listImages;
+        }
         
         // Validate and fetch allowed cities if the field has a value
-        if(product[0].allowed_cities && product[0].allowed_cities.trim() !== '') {
-            const cityIdsArray = product[0].allowed_cities.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+        if(responseProduct[0].allowed_cities && responseProduct[0].allowed_cities.trim() !== '') {
+            const cityIdsArray = responseProduct[0].allowed_cities.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
             if(cityIdsArray.length > 0) {
                 const cities = await citiesModel.getCitiesByIds(cityIdsArray);
-                product[0].cities = cities;
+                responseProduct[0].cities = cities;
             }
         }
         
         // Parse and return required_documents as an array
-        if(product[0].required_documents && product[0].required_documents.trim() !== '') {
-            product[0].required_documents_array = product[0].required_documents
+        if(responseProduct[0].required_documents && responseProduct[0].required_documents.trim() !== '') {
+            responseProduct[0].required_documents_array = responseProduct[0].required_documents
                 .split(',')
                 .map(doc => doc.trim())
                 .filter(doc => doc !== '');
-            product[0].required_documents_count = product[0].required_documents_array.length;
+            responseProduct[0].required_documents_count = responseProduct[0].required_documents_array.length;
         } else {
-            product[0].required_documents_array = [];
-            product[0].required_documents_count = 0;
+            responseProduct[0].required_documents_array = [];
+            responseProduct[0].required_documents_count = 0;
         }
         
-        return response.success(req,res,product,200)
+        return response.success(req,res,responseProduct,200)
     } catch (error) {
         return response.error(req,res,{message:`getProductsByProductId: ${error.message}`},422)
     }
@@ -109,22 +113,65 @@ const CreateProducts = async (req, res) => {
 };
 
 const putProduct = async (req, res) => {
-    
-    let validationObject ={}
     try {
-
         const body = req.body;
-        
-        const updateProduct = await productModel.putProductsUpdate({
-            body
-        });
 
+        const validatedData = await productModel.validateUpdateProduct({ body });
+        if (Object.entries(validatedData.validationObject).length > 0 || validatedData.errorMessage) {
+            return response.error(req, res, {
+                message: validatedData.errorMessage || 'Datos de producto inválidos',
+                validationObject: validatedData.validationObject,
+            }, 422);
+        }
+
+        const updateProduct = await productModel.putProductsUpdate({ body });
         return response.success(req, res, updateProduct, 200);
-
     } catch (error) {
-        return response.error(req, res, { message: `putProductError: ${error.message}` }, 422)
+        return response.error(req, res, { message: `putProductError: ${error.message}` }, 422);
     }
+};
 
+const uploadProductImage = async (req, res) => {
+    try {
+        const productId = parseInt(req.params.product_id, 10);
+        if (!productId) {
+            return response.error(req, res, { message: 'ID de producto inválido' }, 422);
+        }
+
+        const product = await productModel.getProductsByProductId(productId);
+        if (!product || product.length === 0) {
+            return response.error(req, res, { message: 'Producto no encontrado' }, 422);
+        }
+
+        if (!req.file) {
+            return response.error(req, res, { message: 'No se recibió ninguna imagen' }, 422);
+        }
+
+        const imageUrl = `/uploads/products/${req.file.filename}`;
+        const imageName = req.body.name || req.file.originalname || 'image';
+        const order = parseInt(req.body.order, 10) || 0;
+        const created = await productModel.addProductImage(productId, imageUrl, imageName, order);
+
+        return response.success(req, res, created, 200);
+    } catch (error) {
+        return response.error(req, res, { message: `uploadProductImage: ${error.message}` }, 422);
+    }
+};
+
+const deleteProductImage = async (req, res) => {
+    try {
+        const productId = parseInt(req.params.product_id, 10);
+        const imageId = parseInt(req.params.image_id, 10);
+
+        const deleted = await productModel.deleteProductImage(imageId, productId);
+        if (!deleted) {
+            return response.error(req, res, { message: 'Imagen no encontrada' }, 422);
+        }
+
+        return response.success(req, res, { deleted: true }, 200);
+    } catch (error) {
+        return response.error(req, res, { message: `deleteProductImage: ${error.message}` }, 422);
+    }
 };
 
 
@@ -147,4 +194,6 @@ module.exports = {
     CreateProducts,
     putProduct,
     getRandomProducts,
+    uploadProductImage,
+    deleteProductImage,
 }

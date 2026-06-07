@@ -1,4 +1,5 @@
 const knex = require("../db/knex");
+const constants = require("../constants/constants");
 
 const createUserRol = async (id_company_user, id_rol) => {
     const result = await knex('user_rol').insert(
@@ -18,7 +19,19 @@ const getUseRol = async () => {
     .join('users as u', 'u.id_users', 'cu.id_users')
     .join('company as c', 'c.id_company', 'cu.id_company')
     .join('rol as r', 'r.id_rol', 'ur.id_rol')
-    .select('ur.id_user_rol','u.name_user','c.id_company','u.id_users', 'c.name','r.description','r.name');
+    .select(
+        'ur.id_user_rol',
+        'cu.id_company_user',
+        'u.name_user',
+        'u.email',
+        'c.id_company',
+        'u.id_users',
+        'c.name',
+        'ur.id_rol',
+        'r.description',
+        'r.name'
+    )
+    .where('cu.status', constants.STATUS_ACTIVE);
 };
 
 const getUseRolById = async (id_user_rol) => {

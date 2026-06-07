@@ -157,6 +157,15 @@ const updateUserInfo = async (req,res) => {
     const userData = user[0];
     userData.email = body.email;
     userData.address = body.address ? body.address : userData.address;
+    if (body.name_user) {
+      userData.name_user = body.name_user;
+    }
+    if (body.last_name_user) {
+      userData.last_name_user = body.last_name_user;
+    }
+    if (body.identification_number) {
+      userData.identification_number = body.identification_number;
+    }
     if(body.password){
       userData.password = bcrypt.hashSync(body.password, 10);
     }

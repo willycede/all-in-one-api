@@ -97,21 +97,124 @@ const getProductsPaginated = async ({ categoryId, searchBy, page, limit, minPric
 	};
 };
 
+const getProductFeature = async (id_products) => {
+	return knex('features')
+		.where({ id_products, status: generalConstants.STATUS_ACTIVE })
+		.first();
+};
+
+const getProductEditData = async (id_products) => {
+	const rows = await getProductsByProductId(id_products);
+	if (!rows || rows.length === 0) {
+		return null;
+	}
+	const product = rows[0];
+	const feature = await getProductFeature(id_products);
+	product.id_category = feature ? feature.id_category : null;
+	product.images = await getListImagesByProductId(id_products);
+	return product;
+};
+
+const validateUpdateProduct = async ({ body }) => {
+	let validationObject = {};
+	let errorMessage = '';
+
+	if (!body.id_products) {
+		validationObject.id_products = 'El id del producto es obligatorio';
+	}
+	if (!body.name) {
+		validationObject.name = 'El nombre del producto es obligatorio';
+	}
+	if (!body.cod_products) {
+		validationObject.cod_products = 'El código del producto es obligatorio';
+	}
+	if (body.price <= 0) {
+		validationObject.price = 'El precio debe ser mayor a 0';
+	}
+	if (body.discount >= body.price) {
+		validationObject.discount = 'El descuento no puede ser mayor o igual al precio';
+	}
+
+	if (body.cod_products && body.id_products) {
+		const duplicate = await knex('products')
+			.where({ cod_products: body.cod_products, status: generalConstants.STATUS_ACTIVE })
+			.whereNot({ id_products: body.id_products })
+			.first();
+		if (duplicate) {
+			errorMessage = `El código ${duplicate.cod_products} ya está en uso por otro producto`;
+			validationObject.cod_products = errorMessage;
+		}
+	}
+
+	return { validationObject, errorMessage };
+};
+
 const putProductsUpdate = async ({ body }, trx) => {
+	const db = trx || knex;
 
-    await (trx || knex)('produtcs')
-        .where('id_products', '=', body.id_products)
-        .update(
-            {
-                name: body.name,
-                description: body.description,
-                price:body.price,
-                discount:body.discount,
-                updated_at: knex.fn.now()
-            });
+	await db('products')
+		.where('id_products', '=', body.id_products)
+		.update({
+			name: body.name,
+			cod_products: body.cod_products,
+			description: body.description,
+			price: body.price,
+			discount: body.discount,
+			id_cod_catalog: body.id_cod_catalog,
+			external_product_id: body.external_product_id || null,
+			updated_at: knex.fn.now(),
+		});
 
-    return await getProductsByProductId( body.id_products);
+	if (body.id_category) {
+		const feature = await getProductFeature(body.id_products);
+		if (feature) {
+			const featureUpdate = {
+				id_category: body.id_category,
+				id_catalogo: body.id_cod_catalog,
+			};
+			await db('features')
+				.where({ id_products: body.id_products, status: generalConstants.STATUS_ACTIVE })
+				.update(featureUpdate);
+		} else {
+			await postCreateFeacture(body.id_products, body.id_category, body.id_cod_catalog);
+		}
+	}
 
+	return getProductEditData(body.id_products);
+};
+
+const addProductImage = async (productId, url, name, order) => {
+	const result = await knex('product_images').insert({
+		product_id: productId,
+		url,
+		name: name || 'image',
+		order: order || 0,
+		status: generalConstants.STATUS_ACTIVE,
+	});
+	return knex('product_images').where({ product_images_id: result[0] }).first();
+};
+
+const deleteProductImage = async (imageId, productId) => {
+	const image = await knex('product_images')
+		.where({ product_images_id: imageId, product_id: productId, status: generalConstants.STATUS_ACTIVE })
+		.first();
+	if (!image) {
+		return null;
+	}
+	await knex('product_images')
+		.where({ product_images_id: imageId })
+		.update({ status: generalConstants.STATUS_INACTIVE });
+	return image;
+};
+
+const getProductImageById = async (imageId, productId) => {
+	return knex('product_images')
+		.where({
+			product_images_id: imageId,
+			product_id: productId,
+			status: generalConstants.STATUS_ACTIVE,
+		})
+		.first();
 };
 
 const getAllProducts = async () => {
@@ -291,10 +394,15 @@ module.exports = {
     postCreateFeacture,
     getProductsByCodProduct,
     validateExistProduct,
+    validateUpdateProduct,
     RegistraProductModel,
     putProductsUpdate,
     getRandomProducts,
     getListImagesByProductId,
+    getProductEditData,
+    addProductImage,
+    deleteProductImage,
+    getProductImageById,
     getAllProducts,
     getProductsPaginated,
     DEFAULT_LIMIT,

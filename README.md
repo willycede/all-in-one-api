@@ -10,6 +10,22 @@ cp .env.example .env   # configurar variables
 npm start
 ```
 
+## Despliegue en producción
+
+Tras `git pull` en el servidor:
+
+```bash
+cd ~/software/all-in-one-api
+npm install
+npm run migrate:coupons    # tabla coupons + columnas shopping_car
+npm run promote:admin -- tu@email.com   # opcional: promover admin
+pm2 restart api
+```
+
+Verificar que la API responde y que el panel admin puede listar cupones.
+
+Luego desplegar el frontend (`npm run build`) con `VUE_APP_API` apuntando a la API.
+
 ## Migraciones (BD legacy)
 
 Si la BD existía antes de Knex:
@@ -26,6 +42,7 @@ Scripts disponibles:
 | `npm run migrate:baseline` | Marca migraciones históricas como aplicadas |
 | `npm run migrate:favorites` | Crea tabla user_favorites |
 | `npm run migrate:coupons` | Crea tabla coupons + columnas en shopping_car + cupones demo |
+| `npm run promote:admin` | Promueve un usuario a administrador (`-- email@...`) |
 
 ## Seguridad
 

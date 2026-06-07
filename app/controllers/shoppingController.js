@@ -504,6 +504,34 @@ const ShppoingCarUrlPay = async (req, res) => {
                     validation: docValidation,
                 }, 422);
             }
+
+            const cartRows = await shoppingModel.getShoppingCar(parseInt(orden, 10));
+            const cart = cartRows && cartRows[0];
+            if (cart && cart.coupon_code) {
+                const subtotal = await couponsModel.getCartSubtotal(parseInt(orden, 10));
+                const couponValidation = await couponsModel.validateCouponForCart(cart.coupon_code, subtotal);
+                if (!couponValidation.valid) {
+                    return response.error(req, res, {
+                        message: couponValidation.message || 'El cupón aplicado ya no es válido',
+                    }, 422);
+                }
+
+                const storedDiscount = parseFloat(cart.coupon_discount) || 0;
+                const expectedDiscount = couponValidation.discountAmount;
+                if (Math.abs(storedDiscount - expectedDiscount) > 0.02) {
+                    return response.error(req, res, {
+                        message: 'El descuento del cupón no coincide con el carrito. Vuelve a aplicar el cupón.',
+                    }, 422);
+                }
+
+                const expectedSubtotalCents = Math.round(Math.max(0, subtotal - expectedDiscount) * 100);
+                const sentSubtotalCents = parseInt(body.amountWithTax, 10);
+                if (!Number.isNaN(sentSubtotalCents) && Math.abs(expectedSubtotalCents - sentSubtotalCents) > 1) {
+                    return response.error(req, res, {
+                        message: 'El monto enviado a Payphone no coincide con el descuento del cupón',
+                    }, 422);
+                }
+            }
         }
 
         const responseUrl = process.env.PAYPHONE_RESPONSE_URL
