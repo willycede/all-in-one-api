@@ -1,6 +1,8 @@
 # Documentos legales (PDF)
 
-Archivos servidos en `http://<api-host>:3500/legal/v1/`.
+Archivos servidos directamente en `http://<api-host>:3500/legal/v1/` y, en producción, vía proxy en:
+
+`GET /api/legal_documents/file/:document_key`
 
 | Archivo | Uso |
 |---|---|

@@ -7,6 +7,12 @@ const getActiveDocuments = async () => {
         .orderBy('document_key');
 };
 
+const getActiveDocumentByKey = async ({ document_key }) => {
+    return await knex('legal_documents')
+        .where({ document_key, is_active: true })
+        .first();
+};
+
 const getDocumentByKeyAndVersion = async ({ document_key, version }) => {
     return await knex('legal_documents')
         .where({ document_key, version })
@@ -33,6 +39,7 @@ const getUserConsents = async ({ id_users }) => {
 
 module.exports = {
     getActiveDocuments,
+    getActiveDocumentByKey,
     getDocumentByKeyAndVersion,
     recordConsent,
     getUserConsents,

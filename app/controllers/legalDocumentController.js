@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 const legalDocumentModel = require("../models/legalDocument");
 const response = require("../config/response");
 
@@ -9,12 +11,42 @@ const getClientIp = (req) => {
     return req.ip || (req.connection && req.connection.remoteAddress) || null;
 };
 
+const withPublicUrl = (document) => ({
+    ...document,
+    public_url: `/api/legal_documents/file/${document.document_key}`,
+});
+
 const listActive = async (req, res) => {
     try {
         const documents = await legalDocumentModel.getActiveDocuments();
-        return response.success(req, res, documents, 200);
+        return response.success(req, res, documents.map(withPublicUrl), 200);
     } catch (error) {
         return response.error(req, res, { message: `listActiveError: ${error.message}` }, 422);
+    }
+};
+
+const downloadFile = async (req, res) => {
+    try {
+        const { document_key } = req.params;
+        if (!document_key) {
+            return response.error(req, res, { message: 'El parámetro document_key es requerido' }, 422);
+        }
+
+        const document = await legalDocumentModel.getActiveDocumentByKey({ document_key });
+        if (!document) {
+            return response.error(req, res, { message: 'Documento no encontrado o inactivo' }, 404);
+        }
+
+        const relativePath = document.file_path.replace(/^\//, '');
+        const absolutePath = path.join(__dirname, '../../', relativePath);
+
+        if (!fs.existsSync(absolutePath)) {
+            return response.error(req, res, { message: 'Archivo PDF no encontrado en el servidor' }, 404);
+        }
+
+        return res.sendFile(absolutePath);
+    } catch (error) {
+        return response.error(req, res, { message: `downloadFileError: ${error.message}` }, 422);
     }
 };
 
@@ -66,6 +98,7 @@ const getUserConsents = async (req, res) => {
 
 module.exports = {
     listActive,
+    downloadFile,
     createConsent,
     getUserConsents,
     getClientIp,
