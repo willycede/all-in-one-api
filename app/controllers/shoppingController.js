@@ -631,13 +631,15 @@ const ShppoingCarUrlPay = async (req, res) => {
         });
     } catch (error) {
         const statusCode = error.statusCode || 422;
-        const message = (error.response && error.response.data && error.response.data.message)
-            || error.message
-            || 'No se pudo generar el link de pago';
-        const payload = { message };
-        if (error.validation) {
-            payload.validation = error.validation;
-        }
+        const payload = payphoneCheckout.toPayphoneHttpPayload(
+            error,
+            'No se pudo generar el link de pago'
+        );
+        payphoneCheckout.logPayphoneFailure('controller_prepare', {
+            orderId: req.body && (req.body.id_shopping_car || req.body.clientTransactionId),
+            statusCode,
+            ...payload,
+        });
         return response.error(req, res, payload, statusCode);
     }
 
@@ -648,7 +650,7 @@ const regeneratePayphoneLink = async (req, res) => {
     try {
         const orderId = parseInt(req.body.id_shopping_car, 10);
         if (!orderId || Number.isNaN(orderId)) {
-            return response.error(req, res, { message: 'id_shopping_car es requerido' }, 422);
+            return response.error(req, res, { message: 'id_shopping_car es requerido', step: 'validation' }, 422);
         }
 
         const userId = req.userInfo && req.userInfo.id_users;
@@ -670,13 +672,15 @@ const regeneratePayphoneLink = async (req, res) => {
         });
     } catch (error) {
         const statusCode = error.statusCode || 422;
-        const message = (error.response && error.response.data && error.response.data.message)
-            || error.message
-            || 'No se pudo regenerar el link de pago';
-        const payload = { message };
-        if (error.validation) {
-            payload.validation = error.validation;
-        }
+        const payload = payphoneCheckout.toPayphoneHttpPayload(
+            error,
+            'No se pudo regenerar el link de pago'
+        );
+        payphoneCheckout.logPayphoneFailure('controller_regenerate', {
+            orderId: req.body && req.body.id_shopping_car,
+            statusCode,
+            ...payload,
+        });
         return response.error(req, res, payload, statusCode);
     }
 

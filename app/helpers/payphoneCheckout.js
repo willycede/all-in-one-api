@@ -8,6 +8,54 @@ const ORDER_STATUS_ACTIVE_CART = 1;
 
 const buildClientTransactionId = (orderId) => `${orderId}@${Date.now()}`;
 
+const extractPayphoneErrorMessage = (error) => {
+	const data = error.response && error.response.data;
+
+	if (typeof data === 'string' && data.trim()) {
+		return data.trim();
+	}
+
+	if (data && typeof data === 'object') {
+		if (data.message) return String(data.message);
+		if (data.Message) return String(data.Message);
+		if (data.error) return String(data.error);
+		if (data.title) return String(data.title);
+		if (Array.isArray(data.errors) && data.errors.length) {
+			return data.errors.map((item) => item.message || item).join('; ');
+		}
+		try {
+			return JSON.stringify(data);
+		} catch (jsonError) {
+			return error.message;
+		}
+	}
+
+	return error.message || 'Error desconocido de Payphone';
+};
+
+const createPayphoneError = (message, { step, statusCode = 422, details, validation } = {}) => {
+	const err = new Error(message);
+	err.step = step;
+	err.statusCode = statusCode;
+	if (details) err.details = details;
+	if (validation) err.validation = validation;
+	return err;
+};
+
+const logPayphoneFailure = (step, context) => {
+	console.error(`[payphone:${step}] ${JSON.stringify({
+		ts: new Date().toISOString(),
+		...context,
+	}, null, 2)}`);
+};
+
+const toPayphoneHttpPayload = (error, fallbackMessage) => ({
+	message: error.message || fallbackMessage,
+	step: error.step || 'unknown',
+	details: error.details || error.payphoneResponse || null,
+	validation: error.validation || null,
+});
+
 const buildPayphoneAmountsFromCart = (cart) => {
 	const subtotal = Math.round(parseFloat(cart.shopping_car_subtotal || 0) * 100);
 	const couponDiscount = Math.round(parseFloat(cart.coupon_discount || 0) * 100);
@@ -46,15 +94,13 @@ const getOrderForPayment = async (orderId, userId) => {
 	const cart = cartRows && cartRows[0];
 
 	if (!cart) {
-		const err = new Error('Orden no encontrada');
-		err.statusCode = 404;
-		throw err;
+		logPayphoneFailure('order_not_found', { orderId, userId });
+		throw createPayphoneError('Orden no encontrada', { step: 'order_not_found', statusCode: 404 });
 	}
 
 	if (userId && parseInt(cart.id_user, 10) !== parseInt(userId, 10)) {
-		const err = new Error('No tienes permiso para acceder a esta orden');
-		err.statusCode = 403;
-		throw err;
+		logPayphoneFailure('forbidden', { orderId, userId, cartUserId: cart.id_user });
+		throw createPayphoneError('No tienes permiso para acceder a esta orden', { step: 'forbidden', statusCode: 403 });
 	}
 
 	return cart;
@@ -68,9 +114,11 @@ const validateOrderForPayment = async (orderId, { sentSubtotalCents } = {}) => {
 			.map((item) => `${item.product_name}: ${item.missing_documents.join(', ')}`)
 			.join('; ');
 
-		const err = new Error(`Faltan documentos obligatorios antes de pagar. ${missingItems}`);
-		err.statusCode = 422;
-		err.validation = docValidation;
+		const err = createPayphoneError(
+			`Faltan documentos obligatorios antes de pagar. ${missingItems}`,
+			{ step: 'documents', statusCode: 422, validation: docValidation }
+		);
+		logPayphoneFailure('documents', { orderId, validation: docValidation });
 		throw err;
 	}
 
@@ -81,25 +129,43 @@ const validateOrderForPayment = async (orderId, { sentSubtotalCents } = {}) => {
 		const subtotal = await couponsModel.getCartSubtotal(orderId);
 		const couponValidation = await couponsModel.validateCouponForCart(cart.coupon_code, subtotal);
 		if (!couponValidation.valid) {
-			const err = new Error(couponValidation.message || 'El cupón aplicado ya no es válido');
-			err.statusCode = 422;
-			throw err;
+			logPayphoneFailure('coupon_invalid', { orderId, coupon: cart.coupon_code, message: couponValidation.message });
+			throw createPayphoneError(
+				couponValidation.message || 'El cupón aplicado ya no es válido',
+				{ step: 'coupon', statusCode: 422 }
+			);
 		}
 
 		const storedDiscount = parseFloat(cart.coupon_discount) || 0;
 		const expectedDiscount = couponValidation.discountAmount;
 		if (Math.abs(storedDiscount - expectedDiscount) > 0.02) {
-			const err = new Error('El descuento del cupón no coincide con el carrito. Vuelve a aplicar el cupón.');
-			err.statusCode = 422;
-			throw err;
+			logPayphoneFailure('coupon_discount_mismatch', {
+				orderId,
+				storedDiscount,
+				expectedDiscount,
+			});
+			throw createPayphoneError(
+				'El descuento del cupón no coincide con el carrito. Vuelve a aplicar el cupón.',
+				{ step: 'coupon', statusCode: 422, details: { storedDiscount, expectedDiscount } }
+			);
 		}
 
 		if (sentSubtotalCents != null && !Number.isNaN(sentSubtotalCents)) {
 			const expectedSubtotalCents = Math.round(Math.max(0, subtotal - expectedDiscount) * 100);
 			if (Math.abs(expectedSubtotalCents - sentSubtotalCents) > 1) {
-				const err = new Error('El monto enviado a Payphone no coincide con el descuento del cupón');
-				err.statusCode = 422;
-				throw err;
+				logPayphoneFailure('amount_mismatch', {
+					orderId,
+					sentSubtotalCents,
+					expectedSubtotalCents,
+				});
+				throw createPayphoneError(
+					`El monto enviado a Payphone no coincide con el carrito (enviado: ${sentSubtotalCents}, esperado: ${expectedSubtotalCents})`,
+					{
+						step: 'amount',
+						statusCode: 422,
+						details: { sentSubtotalCents, expectedSubtotalCents },
+					}
+				);
 			}
 		}
 	}
@@ -114,9 +180,11 @@ const assertPayableOrderStatus = (cart, { allowActiveCart = true } = {}) => {
 		: [ORDER_STATUS_PENDING_PAYMENT];
 
 	if (!allowed.includes(status)) {
-		const err = new Error('Esta orden no está pendiente de pago');
-		err.statusCode = 422;
-		throw err;
+		logPayphoneFailure('order_status', { orderId: cart.id_shopping_car, status, allowed });
+		throw createPayphoneError(
+			`Esta orden no está pendiente de pago (estado actual: ${status})`,
+			{ step: 'order_status', statusCode: 422, details: { status, allowed } }
+		);
 	}
 };
 
@@ -173,17 +241,51 @@ const callPayphonePrepare = async (payload, orderId, { retryOnDuplicate = true }
 
 			const respuesta = await axios(config);
 
+			if (!respuesta.data || !respuesta.data.payWithPayPhone) {
+				logPayphoneFailure('prepare_empty_url', {
+					orderId,
+					clientTransactionId,
+					payphoneResponse: respuesta.data,
+				});
+				throw createPayphoneError(
+					'Payphone respondió sin URL de pago',
+					{ step: 'payphone_api', details: respuesta.data }
+				);
+			}
+
 			return {
 				url: respuesta.data.payWithPayPhone,
 				clientTransactionId,
 				raw: respuesta.data,
 			};
 		} catch (error) {
+			if (error.step) {
+				throw error;
+			}
+
 			if (attempt < maxAttempts - 1 && isDuplicateClientTransactionError(error)) {
 				clientTransactionId = buildClientTransactionId(orderId);
+				logPayphoneFailure('duplicate_retry', { orderId, clientTransactionId });
 				continue;
 			}
-			throw error;
+
+			const message = extractPayphoneErrorMessage(error);
+			logPayphoneFailure('prepare_error', {
+				orderId,
+				clientTransactionId,
+				httpStatus: error.response && error.response.status,
+				message,
+				payphoneResponse: error.response && error.response.data,
+				payload: currentPayload,
+			});
+
+			const err = createPayphoneError(message, {
+				step: 'payphone_api',
+				statusCode: (error.response && error.response.status) || 422,
+				details: error.response && error.response.data,
+			});
+			err.payphoneResponse = error.response && error.response.data;
+			throw err;
 		}
 	}
 
@@ -233,6 +335,9 @@ module.exports = {
 	buildClientTransactionId,
 	buildPayphoneAmountsFromCart,
 	isDuplicateClientTransactionError,
+	extractPayphoneErrorMessage,
+	logPayphoneFailure,
+	toPayphoneHttpPayload,
 	getOrderForPayment,
 	validateOrderForPayment,
 	assertPayableOrderStatus,
