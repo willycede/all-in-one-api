@@ -16,6 +16,8 @@ const logOrderEmail = (step, payload) => {
 
 const readOrderEmailEnv = () => ({
 	SENDMAILTOKEN: process.env.SENDMAILTOKEN || null,
+	SENDMAIL_SENDER_EMAIL: process.env.SENDMAIL_SENDER_EMAIL || null,
+	SENDMAIL_SENDER_NAME: process.env.SENDMAIL_SENDER_NAME || 'All In One',
 	ADMIN_EMAILS: process.env.ADMIN_EMAILS || null,
 });
 
@@ -26,6 +28,7 @@ const logOrderEmailEnv = (step) => {
 		notes: {
 			provider: 'Brevo (Sendinblue) sib-api-v3-sdk',
 			sendmailTokenConfigured: !!env.SENDMAILTOKEN,
+			senderEmailConfigured: !!env.SENDMAIL_SENDER_EMAIL,
 			adminEmailsConfigured: !!env.ADMIN_EMAILS,
 		},
 	});

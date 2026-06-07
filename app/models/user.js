@@ -15,6 +15,7 @@ require('dotenv').config()
 
 const axios = require('axios');
 const { emailConfig } = require("../email/recoveryPasswordEmail");
+const emailSender = require("../helpers/emailSender");
 
 const getUserByEmailRolClient= async ({email}) => {
   return await knex('users')
@@ -195,7 +196,7 @@ const sendResetPasswordEmail = async ({user}) => {
 
   sendSmtpEmail.subject = "ALL IN ONE RECUPERACIÓN DE CLAVE";
   sendSmtpEmail.htmlContent = emailConfig.html_body.replace("newPassword", newPassword);
-  sendSmtpEmail.sender = { "name": "John Doe", "email": "eduardo.eduardomayorga.mayorga@gmail.com" };
+  sendSmtpEmail.sender = emailSender.assertEmailSenderConfigured();
   sendSmtpEmail.to = [{ "email": user.email, "name": user.name_user }];
 
   apiInstance.sendTransacEmail(sendSmtpEmail).then(async function (data) {

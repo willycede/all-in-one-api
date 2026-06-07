@@ -58,7 +58,7 @@ Ver `.env` para:
 - `PAYURLBTN`, `PAYTOKENBTN`, `PAYURLBTNCONFIRM`
 - `PAYPHONE_STORE_ID` (Identificador de sucursal en Payphone Developer; obligatorio en Prepare)
 - `PAYPHONE_RESPONSE_URL`, `FRONTEND_URL`
-- `SENDMAILTOKEN`, `ADMIN_EMAILS` — Brevo/Sendinblue para correos de pedido
+- `SENDMAILTOKEN`, `SENDMAIL_SENDER_EMAIL`, `SENDMAIL_SENDER_NAME`, `ADMIN_EMAILS` — Brevo (remitente debe estar validado en el panel)
 - `ORDER_EMAIL_DEBUG=1` — logs de envío de correo (`0` para desactivar)
 - `URLAPIFELECTRONICA`, `PATHCOMPROBANTE`, `PATHJASPER`
 

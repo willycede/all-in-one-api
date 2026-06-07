@@ -5,6 +5,7 @@ const couponsModel = require('../models/coupons');
 const response = require('../config/response');
 const payphoneCheckout = require('../helpers/payphoneCheckout');
 const orderEmailDebug = require('../helpers/orderEmailDebug');
+const emailSender = require('../helpers/emailSender');
 
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 
@@ -325,6 +326,14 @@ const sendMailShoppFactura = async (req, res) => {
             return response.error(req, res, { message: 'Configuración de correo incompleta' }, 500);
         }
 
+        let sender;
+        try {
+            sender = emailSender.assertEmailSenderConfigured();
+        } catch (senderError) {
+            orderEmailDebug.logOrderEmail('invoice:error', { message: senderError.message });
+            return response.error(req, res, { message: senderError.message }, 500);
+        }
+
         if (!body.email) {
             orderEmailDebug.logOrderEmail('invoice:error', { message: 'Email destinatario vacío' });
             return response.error(req, res, { message: 'Email requerido' }, 422);
@@ -338,7 +347,7 @@ const sendMailShoppFactura = async (req, res) => {
         let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
         sendSmtpEmail.subject = "ALL IN ONE";
         sendSmtpEmail.htmlContent = body.html;
-        sendSmtpEmail.sender = { name: "All In One", email: "eduardo.eduardomayorga.mayorga@gmail.com" };
+        sendSmtpEmail.sender = sender;
         sendSmtpEmail.to = [{ email: body.email, name: "All In One" }];
 
         const [base64Pdf, base64Xml] = await Promise.all([
@@ -352,6 +361,7 @@ const sendMailShoppFactura = async (req, res) => {
         ];
 
         orderEmailDebug.logOrderEmail('invoice:send', {
+            from: sender,
             to: body.email,
             subject: sendSmtpEmail.subject,
             attachments: [path.basename(pathPdf), path.basename(pathXml)],
@@ -405,6 +415,14 @@ const sendMailShoppingCar = async (req, res) => {
             return response.error(req, res, { message: 'Configuración de correo incompleta' }, 500);
         }
 
+        let sender;
+        try {
+            sender = emailSender.assertEmailSenderConfigured();
+        } catch (senderError) {
+            orderEmailDebug.logOrderEmail('order:error', { message: senderError.message });
+            return response.error(req, res, { message: senderError.message }, 500);
+        }
+
         if (!body.email) {
             orderEmailDebug.logOrderEmail('order:error', { message: 'Email destinatario vacío' });
             return response.error(req, res, { message: 'Email requerido' }, 422);
@@ -419,10 +437,11 @@ const sendMailShoppingCar = async (req, res) => {
 
         sendSmtpEmail.subject = "ALL IN ONE";
         sendSmtpEmail.htmlContent = body.html;
-        sendSmtpEmail.sender = { name: "All In One", email: "eduardo.eduardomayorga.mayorga@gmail.com" };
+        sendSmtpEmail.sender = sender;
         sendSmtpEmail.to = [{ email: body.email, name: body.name || "All In One" }];
 
         orderEmailDebug.logOrderEmail('order:send-customer', {
+            from: sender,
             to: body.email,
             name: body.name,
             subject: sendSmtpEmail.subject,
@@ -451,6 +470,7 @@ const sendMailShoppingCar = async (req, res) => {
         sendSmtpEmail.subject = "ALL IN ONE - Nueva orden del usuario con email: " + body.email + " y nombre: " + body.name;
 
         orderEmailDebug.logOrderEmail('order:send-admin', {
+            from: sender,
             to: adminEmails,
             subject: sendSmtpEmail.subject,
         });
