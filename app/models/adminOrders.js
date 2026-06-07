@@ -1,5 +1,6 @@
 const knex = require('../db/knex');
 const ORDER_STATUS = require('../constants/orderStatus');
+const { getInvoiceAvailability } = require('../helpers/invoiceFiles');
 
 const DEFAULT_LIMIT = 10;
 const ALLOWED_LIMITS = [10, 20, 50];
@@ -85,6 +86,11 @@ const getAdminOrdersPaginated = async ({ page, limit, search, status, invoiceSta
 			'sc.shopping_car_iva',
 			'sc.status',
 			'sc.status_invoice',
+			'sc.invoice_number',
+			'sc.invoice_access_key',
+			'sc.invoice_pdf_path',
+			'sc.invoice_xml_path',
+			'sc.invoiced_at',
 			'sc.created_at',
 			'sc.updated_at',
 			'sc.use_delivery_address',
@@ -102,10 +108,31 @@ const getAdminOrdersPaginated = async ({ page, limit, search, status, invoiceSta
 		.offset(offset);
 
 	return {
-		items: items.map((item) => ({
-			...item,
-			statusLabel: ORDER_STATUS_LABELS[parseInt(item.status, 10)] || 'Desconocido',
-		})),
+		items: items.map((item) => {
+			const availability = getInvoiceAvailability(item);
+			return {
+				id_shopping_car: item.id_shopping_car,
+				id_user: item.id_user,
+				shopping_car_total: item.shopping_car_total,
+				shopping_car_subtotal: item.shopping_car_subtotal,
+				shopping_car_iva: item.shopping_car_iva,
+				status: item.status,
+				status_invoice: item.status_invoice,
+				created_at: item.created_at,
+				updated_at: item.updated_at,
+				use_delivery_address: item.use_delivery_address,
+				delivery_address: item.delivery_address,
+				delivery_recipient_name: item.delivery_recipient_name,
+				delivery_recipient_phone: item.delivery_recipient_phone,
+				name_user: item.name_user,
+				last_name_user: item.last_name_user,
+				email: item.email,
+				identification_number: item.identification_number,
+				customer_address: item.customer_address,
+				statusLabel: ORDER_STATUS_LABELS[parseInt(item.status, 10)] || 'Desconocido',
+				...availability,
+			};
+		}),
 		pagination: {
 			page: safePage,
 			limit: safeLimit,

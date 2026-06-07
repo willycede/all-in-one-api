@@ -6,7 +6,7 @@ const getDashboardStats = async (req, res) => {
 		const stats = await adminDashboardModel.getDashboardStats();
 		return response.success(req, res, stats, 200);
 	} catch (error) {
-		return response.error(req, res, { message: `getDashboardStats: ${error.message}` }, 422);
+		return response.error(req, res, { message: error.message }, 422);
 	}
 };
 

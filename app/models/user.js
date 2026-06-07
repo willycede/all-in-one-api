@@ -14,7 +14,11 @@ const legalDocumentModel = require('./legalDocument');
 require('dotenv').config()
 
 const axios = require('axios');
-const { emailConfig } = require("../email/recoveryPasswordEmail");
+const { getUserLocale } = require('../email/locale');
+const {
+	COPY: passwordRecoveryCopy,
+	buildPasswordRecoveryEmailHtml,
+} = require('../email/templates/passwordRecovery');
 const emailSender = require("../helpers/emailSender");
 
 const getUserByEmailRolClient= async ({email}) => {
@@ -195,9 +199,11 @@ const sendResetPasswordEmail = async ({user}) => {
   const min = Math.ceil(10000000);
   const max = Math.floor(100000000);
   const newPassword =  Math.floor(Math.random() * (max - min) + min);
+  const locale = await getUserLocale(user.id_users);
+  const t = passwordRecoveryCopy[locale === 'en' ? 'en' : 'sp'];
 
-  sendSmtpEmail.subject = "ALL IN ONE RECUPERACIÓN DE CLAVE";
-  sendSmtpEmail.htmlContent = emailConfig.html_body.replace("newPassword", newPassword);
+  sendSmtpEmail.subject = t.subject;
+  sendSmtpEmail.htmlContent = buildPasswordRecoveryEmailHtml({ locale, newPassword });
   sendSmtpEmail.sender = emailSender.assertEmailSenderConfigured();
   sendSmtpEmail.to = [{ "email": user.email, "name": user.name_user }];
 

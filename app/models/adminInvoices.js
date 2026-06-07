@@ -1,5 +1,6 @@
 const knex = require('../db/knex');
 const { reprocessInvoiceForOrder } = require('./order_invoice');
+const { getInvoiceAvailability } = require('../helpers/invoiceFiles');
 
 const PAID_STATUS = 3;
 const DEFAULT_LIMIT = 10;
@@ -66,6 +67,11 @@ const getAdminInvoicesPaginated = async ({ page, limit, search, status }) => {
 			'sc.shopping_car_iva',
 			'sc.status',
 			'sc.status_invoice',
+			'sc.invoice_number',
+			'sc.invoice_access_key',
+			'sc.invoice_pdf_path',
+			'sc.invoice_xml_path',
+			'sc.invoiced_at',
 			'sc.created_at',
 			'sc.updated_at',
 			'u.name_user',
@@ -77,8 +83,28 @@ const getAdminInvoicesPaginated = async ({ page, limit, search, status }) => {
 		.limit(safeLimit)
 		.offset(offset);
 
+	const sanitizedItems = items.map((row) => {
+		const availability = getInvoiceAvailability(row);
+		return {
+			id_shopping_car: row.id_shopping_car,
+			id_user: row.id_user,
+			shopping_car_total: row.shopping_car_total,
+			shopping_car_subtotal: row.shopping_car_subtotal,
+			shopping_car_iva: row.shopping_car_iva,
+			status: row.status,
+			status_invoice: row.status_invoice,
+			created_at: row.created_at,
+			updated_at: row.updated_at,
+			name_user: row.name_user,
+			last_name_user: row.last_name_user,
+			email: row.email,
+			identification_number: row.identification_number,
+			...availability,
+		};
+	});
+
 	return {
-		items,
+		items: sanitizedItems,
 		pagination: {
 			page: safePage,
 			limit: safeLimit,

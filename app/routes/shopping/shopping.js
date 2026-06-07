@@ -18,6 +18,7 @@ router.post('/payphone', verifyToken, payphoneRateLimit, shopController.Shppoing
 router.post('/payphone/regenerate', verifyToken, payphoneRateLimit, shopController.regeneratePayphoneLink);
 router.get('/payphone/resolve_link', payphoneRateLimit, shopController.resolvePaymentLink);
 router.post('/payphone/confirm', shopController.ShppoingCarUrlPayConfirm);
+router.post('/payphone/process-invoice', verifyToken, shopController.processInvoiceForOrder);
 router.post('/payphone/invoice/state', verifyToken, shopController.putUpdateInoviceState);
 router.post('/sendmail', verifyToken, shopController.sendMailShoppingCar);
 router.post('/sendmail_factura', verifyToken, shopController.sendMailShoppFactura);

@@ -27,5 +27,11 @@ router.post(
 	assertSelfUser,
 	orderHistoryController.repeatOrder
 );
+router.get(
+	'/download_invoice/:id_shopping_car/:id_user/:type',
+	verifyToken,
+	assertSelfUser,
+	orderHistoryController.downloadInvoiceFile
+);
 
 module.exports = router;

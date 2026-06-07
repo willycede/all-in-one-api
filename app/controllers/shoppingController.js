@@ -2,6 +2,7 @@ const fs = require('fs');
 
 const shoppingModel = require('../models/shopping')
 const couponsModel = require('../models/coupons');
+const { processInvoiceAfterPayment } = require('../models/order_invoice');
 const response = require('../config/response');
 const payphoneCheckout = require('../helpers/payphoneCheckout');
 const orderEmailDebug = require('../helpers/orderEmailDebug');
@@ -549,6 +550,27 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
             } catch (couponErr) {
                 console.error('Error incrementando uso de cupón:', couponErr.message);
             }
+
+            let invoiceResult = null;
+            try {
+                invoiceResult = await processInvoiceAfterPayment(parseInt(orden, 10));
+            } catch (invoiceErr) {
+                console.error('Error procesando factura post-pago:', invoiceErr.message);
+                invoiceResult = {
+                    success: false,
+                    message: invoiceErr.message,
+                };
+            }
+
+            const jsonResp = {
+                url: respuesta.data,
+                errorCode: 200,
+                success: true,
+                orderId: parseInt(orden, 10),
+                invoice: invoiceResult,
+            };
+
+            return res.status(200).send(jsonResp);
         }
 
         const jsonResp = {
@@ -752,11 +774,16 @@ const putUpdateInoviceState = async (req, res) => {
 
         var body = req.body;
 
-        console.log(body);
-
-
-
         let id_shopping_car = body.orden;
+
+        const cartRows = await shoppingModel.getShoppingCar(id_shopping_car);
+        const cart = cartRows && cartRows[0];
+
+        if (!cart || !cart.invoice_access_key) {
+            return response.error(req, res, {
+                message: 'No se puede marcar como facturado sin comprobante generado',
+            }, 422);
+        }
 
         body = {
             "status_invoice": 1
@@ -852,6 +879,60 @@ const resolvePaymentLink = async (req, res) => {
 };
 
 
+const processInvoiceForOrder = async (req, res) => {
+    try {
+        const orderId = parseInt(req.body.orden || req.body.id_shopping_car, 10);
+        if (!orderId || Number.isNaN(orderId)) {
+            return response.error(req, res, { message: 'orden es requerida' }, 422);
+        }
+
+        const userId = req.userInfo && req.userInfo.id_users;
+        const cartRows = await shoppingModel.getShoppingCar(orderId);
+        const cart = cartRows && cartRows[0];
+
+        if (!cart) {
+            return response.error(req, res, { message: 'Orden no encontrada' }, 404);
+        }
+
+        if (userId && parseInt(cart.id_user, 10) !== parseInt(userId, 10)) {
+            return response.error(req, res, { message: 'No autorizado' }, 403);
+        }
+
+        const invoiceResult = await processInvoiceAfterPayment(orderId);
+        return response.success(req, res, invoiceResult, 200);
+    } catch (error) {
+        return response.error(req, res, { message: error.message }, 422);
+    }
+};
+
+
+const processInvoiceForOrder = async (req, res) => {
+    try {
+        const orderId = parseInt(req.body.orden || req.body.id_shopping_car, 10);
+        if (!orderId || Number.isNaN(orderId)) {
+            return response.error(req, res, { message: 'orden es requerida' }, 422);
+        }
+
+        const userId = req.userInfo && req.userInfo.id_users;
+        const cartRows = await shoppingModel.getShoppingCar(orderId);
+        const cart = cartRows && cartRows[0];
+
+        if (!cart) {
+            return response.error(req, res, { message: 'Orden no encontrada' }, 404);
+        }
+
+        if (userId && parseInt(cart.id_user, 10) !== parseInt(userId, 10)) {
+            return response.error(req, res, { message: 'No autorizado' }, 403);
+        }
+
+        const invoiceResult = await processInvoiceAfterPayment(orderId);
+        return response.success(req, res, invoiceResult, 200);
+    } catch (error) {
+        return response.error(req, res, { message: error.message }, 422);
+    }
+};
+
+
 module.exports = {
     createShoppingCarCtr,
     createShoppingCarDetailsCtr,
@@ -865,6 +946,7 @@ module.exports = {
     resolvePaymentLink,
     putUpdateShoppingPay,
     putUpdateInoviceState,
+    processInvoiceForOrder,
     ShppoingCarUrlPayConfirm,
     sendMailShoppingCar,
     sendMailShoppFactura,

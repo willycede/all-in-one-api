@@ -1,5 +1,6 @@
 const knex = require('../db/knex');
 const ORDER_STATUS = require('../constants/orderStatus');
+const { sanitizeOrderInvoiceFields } = require('../helpers/invoiceFiles');
 
 const DEFAULT_LIMIT = 10;
 const ALLOWED_LIMITS = [10, 20, 50];
@@ -32,7 +33,7 @@ const getOrderHistoryPaginated = async (id_user, page = 1, limit = DEFAULT_LIMIT
 		.offset(offset);
 
 	return {
-		items,
+		items: items.map(sanitizeOrderInvoiceFields),
 		pagination: {
 			page: safePage,
 			limit: safeLimit,

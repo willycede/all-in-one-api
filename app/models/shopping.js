@@ -317,6 +317,7 @@ const createShoppingMetodo = async (
         shopping_car_total: body.shopping_car_total,
         shopping_car_total_discount:body.shopping_car_total_discount,
         status: body.status,
+        status_invoice: 0,
         created_at: new Date(Date.now()),
     }
 

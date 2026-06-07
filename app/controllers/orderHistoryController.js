@@ -3,6 +3,7 @@ const orderInvoiceModel = require('../models/order_invoice');
 const orderRepeatModel = require('../models/order_repeat');
 const userModel = require('../models/user');
 const { trySendOrderCancelledEmail } = require('../helpers/orderCancellationEmail');
+const { resolveInvoiceFile, streamInvoiceFile } = require('../helpers/invoiceFiles');
 const response = require('../config/response');
 
 const getOrdersHistory = async (req, res) => {
@@ -72,9 +73,29 @@ const repeatOrder = async (req, res) => {
 	}
 };
 
+const downloadInvoiceFile = async (req, res) => {
+	try {
+		const orderId = parseInt(req.params.id_shopping_car, 10);
+		const userId = parseInt(req.params.id_user, 10);
+		const type = String(req.params.type || '').toLowerCase();
+
+		const file = await resolveInvoiceFile({
+			orderId,
+			type,
+			userId,
+			isAdmin: false,
+		});
+
+		streamInvoiceFile(res, file);
+	} catch (error) {
+		return response.error(req, res, { message: error.message }, 404);
+	}
+};
+
 module.exports = {
 	getOrdersHistory,
 	deleteHistory,
 	reprocessInvoice,
 	repeatOrder,
+	downloadInvoiceFile,
 };

@@ -11,6 +11,7 @@
     "migrate:favorites": "node app/db/scripts/ensure_user_favorites.js",
     "migrate:coupons": "node app/db/scripts/ensure_coupons.js",
     "migrate:user-security": "node app/db/scripts/ensure_user_security.js",
+    "migrate:billing": "node app/db/scripts/ensure_billing_settings.js",
     "promote:admin": "node app/db/scripts/promote_admin_user.js",
     "migrate:baseline": "node app/db/scripts/baseline_migrations.js"
   },
