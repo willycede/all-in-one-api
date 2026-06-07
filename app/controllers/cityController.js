@@ -1,4 +1,5 @@
 const cityModel = require('../models/city')
+const citiesModel = require('../models/cities')
 const response = require('../config/response');
 
 const getCitiesByStateId = async(req,res)=>{
@@ -15,6 +16,17 @@ const getCitiesByStateId = async(req,res)=>{
         return response.error(req,res,{message:`getCitiesByStateId: ${error.message}`},422)
     }
 }
+
+const getCatalogCities = async (req, res) => {
+    try {
+        const cities = await citiesModel.getAllCatalogCities();
+        return response.success(req, res, cities, 200);
+    } catch (error) {
+        return response.error(req, res, { message: `getCatalogCities: ${error.message}` }, 422);
+    }
+};
+
 module.exports = {
     getCitiesByStateId,
+    getCatalogCities,
 }

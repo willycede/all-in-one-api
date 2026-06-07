@@ -7,6 +7,13 @@ const getCitiesByIds = async (cityIds) => {
         .orderBy('name', 'asc');
 };
 
+const getAllCatalogCities = async () => {
+    return await knex.select('id_city', 'name', 'state_id')
+        .from('city')
+        .orderBy('name', 'asc');
+};
+
 module.exports = {
-    getCitiesByIds
+    getCitiesByIds,
+    getAllCatalogCities,
 };

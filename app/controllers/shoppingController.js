@@ -1,6 +1,7 @@
 const fs = require('fs');
 
 const shoppingModel = require('../models/shopping')
+const couponsModel = require('../models/coupons');
 const response = require('../config/response');
 const cartValidation = require('../helpers/cartValidation');
 
@@ -427,6 +428,11 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
 
         if (respuesta.data && respuesta.data.statusCode) {
             await shoppingModel.putShoppingUpdatePago(orden);
+            try {
+                await couponsModel.incrementCouponUsage(orden);
+            } catch (couponErr) {
+                console.error('Error incrementando uso de cupón:', couponErr.message);
+            }
         }
 
         const jsonResp = {

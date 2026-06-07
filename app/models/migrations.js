@@ -31,6 +31,8 @@ const runMigrations = async () => {
 	}
 };
 
+const { seedDefaultCoupons } = require('./coupons');
+
 const ensureUserFavoritesTable = async () => {
 	const exists = await db.schema.hasTable('user_favorites');
 	if (exists) {
@@ -62,9 +64,26 @@ const ensureUserFavoritesTable = async () => {
 	console.log('[migrations] user_favorites creada correctamente');
 };
 
+const ensureCouponsSetup = async () => {
+	const hasCoupons = await db.schema.hasTable('coupons');
+	if (!hasCoupons) {
+		console.warn('[migrations] coupons no existe — ejecuta: npm run migrate:coupons');
+		return;
+	}
+
+	const hasCouponCode = await db.schema.hasColumn('shopping_car', 'coupon_code');
+	if (!hasCouponCode) {
+		console.warn('[migrations] shopping_car.coupon_code no existe — ejecuta: npm run migrate:coupons');
+		return;
+	}
+
+	await seedDefaultCoupons();
+};
+
 const testDB = async () => {
 	await runMigrations();
 	await ensureUserFavoritesTable();
+	await ensureCouponsSetup();
 	await db.raw('SELECT 1');
 	console.log('Database connected successfully');
 };

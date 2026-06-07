@@ -42,7 +42,17 @@ const assertSelfUser = (req, res, next) => {
 	return res.status(403).json({ error: { message: 'No tienes permiso para acceder a este recurso' }, data: {} });
 };
 
+const assertAdmin = (req, res, next) => {
+	const user = req.userInfo || {};
+	const roleId = parseInt(user.id_rol, 10);
+	if (roleId === 1) {
+		return next();
+	}
+	return res.status(403).json({ error: { message: 'Acceso restringido a administradores' }, data: {} });
+};
+
 module.exports = {
 	verifyToken,
 	assertSelfUser,
+	assertAdmin,
 };

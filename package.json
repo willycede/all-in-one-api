@@ -4,11 +4,13 @@
   "description": "backend to dispatch all front request",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node app/tests/productCatalogFilters.test.js",
     "start": "nodemon server.js",
     "migrate": "knex migrate:latest",
     "migrate:rollback": "knex migrate:rollback",
     "migrate:favorites": "node app/db/scripts/ensure_user_favorites.js",
+    "migrate:coupons": "node app/db/scripts/ensure_coupons.js",
+    "promote:admin": "node app/db/scripts/promote_admin_user.js",
     "migrate:baseline": "node app/db/scripts/baseline_migrations.js"
   },
   "author": "Dev Team",

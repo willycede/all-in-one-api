@@ -34,6 +34,10 @@ app.get("/", (req, res) => {
   res.json({ message: "Welcome to all in one api." });
 });
 
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 const PORT = process.env.PORT || 3500;
 
 const startServer = async () => {

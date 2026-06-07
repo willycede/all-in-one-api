@@ -2,23 +2,47 @@ const express = require('express');
 const router = express.Router();
 const cartDetailDocumentsController = require('../../controllers/cartDetailDocumentsController');
 const upload = require('../../config/multerConfig');
+const { verifyToken, assertSelfUser, assertAdmin } = require('../../middleware/auth');
 
-// Get all documents for a cart detail
-router.get('/cart-detail/:cart_detail_id', cartDetailDocumentsController.getDocumentsByCartDetail);
+router.get(
+	'/admin/review',
+	verifyToken,
+	assertAdmin,
+	cartDetailDocumentsController.getDocumentsForAdminReview
+);
 
-// Upload a new document with file (saves to server)
-router.post('/upload-file', upload.single('document'), cartDetailDocumentsController.uploadDocumentWithFile);
+router.get(
+	'/cart-detail/:cart_detail_id',
+	verifyToken,
+	cartDetailDocumentsController.getDocumentsByCartDetail
+);
 
-// Upload a new document (legacy - with external URL)
-router.post('/upload', cartDetailDocumentsController.uploadDocument);
+router.post(
+	'/upload-file',
+	verifyToken,
+	upload.single('document'),
+	cartDetailDocumentsController.uploadDocumentWithFile
+);
 
-// Validate documents for a cart detail
-router.get('/validate/cart-detail/:cart_detail_id', cartDetailDocumentsController.validateDocuments);
+router.post('/upload', verifyToken, cartDetailDocumentsController.uploadDocument);
 
-// Update document verification status
-router.put('/:document_id/verify', cartDetailDocumentsController.updateVerification);
+router.get(
+	'/validate/cart-detail/:cart_detail_id',
+	verifyToken,
+	cartDetailDocumentsController.validateDocuments
+);
 
-// Delete a document
-router.delete('/:document_id', cartDetailDocumentsController.deleteDocument);
+router.put(
+	'/:document_id/verify',
+	verifyToken,
+	assertAdmin,
+	cartDetailDocumentsController.updateVerification
+);
+
+router.delete(
+	'/:document_id',
+	verifyToken,
+	cartDetailDocumentsController.deleteDocument
+);
 
 module.exports = router;

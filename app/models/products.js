@@ -1,6 +1,101 @@
 //Import necessary libraries
 const generalConstants = require('../constants/constants')
 const knex = require('../db/knex')
+const {
+	parseFilterParams,
+	applyPriceFilters,
+	applyCityFilter,
+	applySort,
+} = require('../helpers/productCatalogFilters')
+
+const DEFAULT_LIMIT = 12;
+const ALLOWED_LIMITS = [12, 24, 48];
+
+const normalizePagination = (page, limit) => {
+	const safePage = Math.max(1, parseInt(page, 10) || 1);
+	const parsedLimit = parseInt(limit, 10);
+	const safeLimit = ALLOWED_LIMITS.includes(parsedLimit) ? parsedLimit : DEFAULT_LIMIT;
+	return { page: safePage, limit: safeLimit };
+};
+
+const buildProductsBaseQuery = (categoryId, searchBy, filters) => {
+	let query = knex('products as p').where('p.status', generalConstants.STATUS_ACTIVE);
+
+	if (categoryId && categoryId !== 'undefined') {
+		query = query
+			.leftJoin('features as f', 'f.id_products', 'p.id_products')
+			.join('category as cat', 'cat.id_category', 'f.id_category')
+			.where('cat.id_general_category', parseInt(categoryId, 10));
+	}
+
+	if (searchBy && String(searchBy).trim()) {
+		query = query.where('p.name', 'like', `%${String(searchBy).trim()}%`);
+	}
+
+	query = applyPriceFilters(query, filters);
+	query = applyCityFilter(query, filters.cityId);
+
+	return query;
+};
+
+const getProductsPaginated = async ({ categoryId, searchBy, page, limit, minPrice, maxPrice, cityId, sortBy }) => {
+	const { page: safePage, limit: safeLimit } = normalizePagination(page, limit);
+	const offset = (safePage - 1) * safeLimit;
+	const filters = parseFilterParams({ minPrice, maxPrice, cityId, sortBy });
+	const baseQuery = buildProductsBaseQuery(categoryId, searchBy, filters);
+
+	const countSubquery = baseQuery.clone()
+		.select('p.id_products')
+		.groupBy('p.id_products');
+
+	const countResult = await knex
+		.count({ total: 'id_products' })
+		.from(countSubquery.as('sub'))
+		.first();
+
+	const total = Number((countResult && countResult.total) || 0);
+	const totalPages = total === 0 ? 0 : Math.ceil(total / safeLimit);
+
+	let itemsQuery = baseQuery
+		.clone()
+		.select(
+			'p.id_products',
+			'p.cod_products',
+			'p.name',
+			'p.description',
+			'p.price',
+			'p.required_documents',
+			'p.allowed_cities'
+		)
+		.groupBy(
+			'p.id_products',
+			'p.cod_products',
+			'p.name',
+			'p.description',
+			'p.price',
+			'p.required_documents',
+			'p.allowed_cities'
+		);
+
+	itemsQuery = applySort(itemsQuery, filters.sortBy);
+
+	const items = await itemsQuery
+		.limit(safeLimit)
+		.offset(offset);
+
+	return {
+		items,
+		pagination: {
+			page: safePage,
+			limit: safeLimit,
+			total,
+			totalPages,
+			hasNextPage: safePage < totalPages,
+			hasPrevPage: safePage > 1,
+		},
+		filters,
+	};
+};
 
 const putProductsUpdate = async ({ body }, trx) => {
 
@@ -200,5 +295,8 @@ module.exports = {
     putProductsUpdate,
     getRandomProducts,
     getListImagesByProductId,
-    getAllProducts
+    getAllProducts,
+    getProductsPaginated,
+    DEFAULT_LIMIT,
+    ALLOWED_LIMITS,
 }

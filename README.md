@@ -25,6 +25,7 @@ Scripts disponibles:
 | `npm run migrate` | Knex migrate:latest |
 | `npm run migrate:baseline` | Marca migraciones históricas como aplicadas |
 | `npm run migrate:favorites` | Crea tabla user_favorites |
+| `npm run migrate:coupons` | Crea tabla coupons + columnas en shopping_car + cupones demo |
 
 ## Seguridad
 

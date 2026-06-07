@@ -3,15 +3,46 @@ const productModel = require('../models/products');
 const response = require('../config/response');
 const knex = require('../db/knex');
 
+const assertCartDetailOwnership = async (req, res, cartDetailId) => {
+    const tokenUserId = parseInt(req.userInfo && req.userInfo.id_users, 10);
+    if (!tokenUserId) {
+        response.error(req, res, { message: 'No autorizado' }, 403);
+        return false;
+    }
+
+    const cartDetail = await knex('shopping_car_details as scd')
+        .join('shopping_car as sc', 'sc.id_shopping_car', 'scd.id_shopping_car')
+        .where('scd.id_details', cartDetailId)
+        .select('sc.id_user')
+        .first();
+
+    if (!cartDetail) {
+        response.error(req, res, { message: 'Cart detail not found' }, 404);
+        return false;
+    }
+
+    if (parseInt(cartDetail.id_user, 10) !== tokenUserId) {
+        response.error(req, res, { message: 'No tienes permiso para acceder a este carrito' }, 403);
+        return false;
+    }
+
+    return true;
+};
+
 /**
  * Get all documents for a cart detail
  */
 const getDocumentsByCartDetail = async (req, res) => {
     try {
-        const cartDetailId = parseInt(req.params.cart_detail_id);
+        const cartDetailId = parseInt(req.params.cart_detail_id, 10);
 
         if (!cartDetailId) {
             return response.error(req, res, { message: 'Cart Detail ID is required' }, 422);
+        }
+
+        const hasAccess = await assertCartDetailOwnership(req, res, cartDetailId);
+        if (!hasAccess) {
+            return;
         }
 
         const documents = await cartDetailDocumentsModel.getDocumentsByCartDetail(cartDetailId);
@@ -44,9 +75,15 @@ const uploadDocumentWithFile = async (req, res) => {
             return response.error(req, res, { message: 'Validation failed', validationObject }, 422);
         }
 
+        const cartDetailId = parseInt(cart_detail_id, 10);
+        const hasAccess = await assertCartDetailOwnership(req, res, cartDetailId);
+        if (!hasAccess) {
+            return;
+        }
+
         // Get cart detail and product info
         const cartDetail = await knex('shopping_car_details')
-            .where({ id_details: cart_detail_id })
+            .where({ id_details: cartDetailId })
             .first();
 
         if (!cartDetail) {
@@ -74,7 +111,7 @@ const uploadDocumentWithFile = async (req, res) => {
         const documentUrl = `/uploads/documents/${req.file.filename}`;
 
         const documentData = {
-            cart_detail_id: parseInt(cart_detail_id),
+            cart_detail_id: cartDetailId,
             document_type,
             document_url: documentUrl,
             file_name: req.file.originalname,
@@ -83,7 +120,7 @@ const uploadDocumentWithFile = async (req, res) => {
         };
 
         // Check if document already exists
-        const existingDoc = await cartDetailDocumentsModel.getDocumentByType(cart_detail_id, document_type);
+        const existingDoc = await cartDetailDocumentsModel.getDocumentByType(cartDetailId, document_type);
         
         let savedDocument;
         if (existingDoc) {
@@ -131,9 +168,15 @@ const uploadDocument = async (req, res) => {
             return response.error(req, res, { message: 'Validation failed', validationObject }, 422);
         }
 
+        const cartDetailId = parseInt(cart_detail_id, 10);
+        const hasAccess = await assertCartDetailOwnership(req, res, cartDetailId);
+        if (!hasAccess) {
+            return;
+        }
+
         // Get cart detail and product info
         const cartDetail = await knex('shopping_car_details')
-            .where({ id_details: cart_detail_id })
+            .where({ id_details: cartDetailId })
             .first();
 
         if (!cartDetail) {
@@ -158,7 +201,7 @@ const uploadDocument = async (req, res) => {
         }
 
         // Check if document already exists
-        const existingDoc = await cartDetailDocumentsModel.getDocumentByType(cart_detail_id, document_type);
+        const existingDoc = await cartDetailDocumentsModel.getDocumentByType(cartDetailId, document_type);
         if (existingDoc) {
             return response.error(req, res, { 
                 message: `Document of type '${document_type}' already exists for this cart detail`,
@@ -187,10 +230,15 @@ const uploadDocument = async (req, res) => {
  */
 const validateDocuments = async (req, res) => {
     try {
-        const cartDetailId = parseInt(req.params.cart_detail_id);
+        const cartDetailId = parseInt(req.params.cart_detail_id, 10);
 
         if (!cartDetailId) {
             return response.error(req, res, { message: 'Cart Detail ID is required' }, 422);
+        }
+
+        const hasAccess = await assertCartDetailOwnership(req, res, cartDetailId);
+        if (!hasAccess) {
+            return;
         }
 
         // Get cart detail and product info
@@ -237,24 +285,50 @@ const deleteDocument = async (req, res) => {
 };
 
 /**
+ * Admin: list documents pending or verified review
+ */
+const getDocumentsForAdminReview = async (req, res) => {
+    try {
+        const statusFilter = req.query.status || 'pending';
+        const allowedFilters = ['pending', 'verified', 'all'];
+        const safeFilter = allowedFilters.includes(statusFilter) ? statusFilter : 'pending';
+
+        const result = await cartDetailDocumentsModel.getDocumentsForAdminReview({
+            page: req.query.page,
+            limit: req.query.limit,
+            statusFilter: safeFilter,
+        });
+
+        return response.success(req, res, result, 200);
+    } catch (error) {
+        return response.error(req, res, { message: `getDocumentsForAdminReview: ${error.message}` }, 422);
+    }
+};
+
+/**
  * Update document verification status
  */
 const updateVerification = async (req, res) => {
     try {
-        const documentId = parseInt(req.params.document_id);
-        const { verified_by, verified, notes } = req.body;
+        const documentId = parseInt(req.params.document_id, 10);
+        const { verified, notes } = req.body;
+        const verifiedBy = parseInt(req.userInfo && req.userInfo.id_users, 10);
 
         if (!documentId) {
             return response.error(req, res, { message: 'Document ID is required' }, 422);
         }
 
-        if (verified_by === undefined || verified === undefined) {
-            return response.error(req, res, { message: 'verified_by and verified fields are required' }, 422);
+        if (!verifiedBy) {
+            return response.error(req, res, { message: 'Usuario administrador no identificado' }, 403);
+        }
+
+        if (verified === undefined) {
+            return response.error(req, res, { message: 'verified field is required' }, 422);
         }
 
         const updatedDocument = await cartDetailDocumentsModel.updateDocumentVerification(
             documentId,
-            verified_by,
+            verifiedBy,
             verified,
             notes
         );
@@ -271,5 +345,6 @@ module.exports = {
     uploadDocumentWithFile,
     validateDocuments,
     deleteDocument,
-    updateVerification
+    updateVerification,
+    getDocumentsForAdminReview,
 };

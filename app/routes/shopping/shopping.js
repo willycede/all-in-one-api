@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const shopController = require('../../controllers/shoppingController');
 const { verifyToken, assertSelfUser } = require('../../middleware/auth');
+const { rateLimit } = require('../../middleware/rateLimit');
+
+const payphoneRateLimit = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, keyPrefix: 'payphone' });
 
 router.post('/create_shopp', verifyToken, assertSelfUser, shopController.createShoppingCarCtr);
 router.post('/create_shoppDetails', verifyToken, assertSelfUser, shopController.createShoppingCarDetailsCtr);
@@ -11,7 +14,7 @@ router.get('/get_shop_by_id/:id_orden', verifyToken, shopController.getShoppCarB
 router.get('/get_shopDetails/:id_shopping_car', verifyToken, shopController.getShoppCarDetails);
 router.get('/get_invoice_data/:id_user', verifyToken, assertSelfUser, shopController.getInvoiceData);
 router.post('/pay_shop', verifyToken, shopController.putUpdateShoppingPay);
-router.post('/payphone', verifyToken, shopController.ShppoingCarUrlPay);
+router.post('/payphone', verifyToken, payphoneRateLimit, shopController.ShppoingCarUrlPay);
 router.post('/payphone/confirm', shopController.ShppoingCarUrlPayConfirm);
 router.post('/payphone/invoice/state', verifyToken, shopController.putUpdateInoviceState);
 router.post('/sendmail', verifyToken, shopController.sendMailShoppingCar);

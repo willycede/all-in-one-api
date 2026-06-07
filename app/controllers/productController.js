@@ -1,29 +1,37 @@
 const productModel = require('../models/products')
 const citiesModel = require('../models/cities')
 const response = require('../config/response');
-const { off } = require('npm');
+
+const attachImagesToProducts = async (products) => {
+	for (const product of products) {
+		const listImages = await productModel.getListImagesByProductId(product.id_products);
+		product.images = listImages;
+	}
+	return products;
+};
 
 const getProductsByCategoryId = async(req,res)=>{
     try {
         const query = req.query;
         let category_id = req.params.category_id;
-        let products;
-        if(!category_id || category_id === 'undefined'){
-            products = await productModel.getAllProducts(query);
-        }else {
-            category_id = parseInt(category_id);
-            products = await productModel.getProductsByGeneralCategoryId(category_id, query);
+
+        if (!category_id || category_id === 'undefined') {
+            category_id = null;
         }
-        if (query.searchBy){
-            const regexText = new RegExp(query.searchBy.toLowerCase() || '');
-            products = products.filter(product => regexText.test(product.name.toLowerCase()));
-        }
-     
-        for (const product of products) {
-            const listImages = await productModel.getListImagesByProductId(product.id_products);
-            product.images = listImages;
-        }
-        return response.success(req,res,products,200)
+
+        const result = await productModel.getProductsPaginated({
+            categoryId: category_id,
+            searchBy: query.searchBy,
+            page: query.page,
+            limit: query.limit,
+            minPrice: query.minPrice,
+            maxPrice: query.maxPrice,
+            cityId: query.cityId,
+            sortBy: query.sortBy,
+        });
+
+        result.items = await attachImagesToProducts(result.items);
+        return response.success(req, res, result, 200);
 
     } catch (error) {
         return response.error(req,res,{message:`getProductsByCategoryId: ${error.message}`},422)
