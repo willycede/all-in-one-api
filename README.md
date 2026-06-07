@@ -58,7 +58,8 @@ Ver `.env` para:
 - `PAYURLBTN`, `PAYTOKENBTN`, `PAYURLBTNCONFIRM`
 - `PAYPHONE_STORE_ID` (Identificador de sucursal en Payphone Developer; obligatorio en Prepare)
 - `PAYPHONE_RESPONSE_URL`, `FRONTEND_URL`
-- `PAYPHONE_DEBUG=1` — logs detallados de Payphone en consola (incluye token; poner `0` en prod estable)
+- `SENDMAILTOKEN`, `ADMIN_EMAILS` — Brevo/Sendinblue para correos de pedido
+- `ORDER_EMAIL_DEBUG=1` — logs de envío de correo (`0` para desactivar)
 - `URLAPIFELECTRONICA`, `PATHCOMPROBANTE`, `PATHJASPER`
 
 ## Documentación de flujos

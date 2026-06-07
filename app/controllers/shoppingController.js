@@ -4,7 +4,7 @@ const shoppingModel = require('../models/shopping')
 const couponsModel = require('../models/coupons');
 const response = require('../config/response');
 const cartValidation = require('../helpers/cartValidation');
-const payphoneDebug = require('../helpers/payphoneDebug');
+const orderEmailDebug = require('../helpers/orderEmailDebug');
 
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 
@@ -303,58 +303,88 @@ const getInvoiceData = async (req, res) => {
 }
 
 
-const sendMailShoppFactura = async (req, res) => { 
+const sendMailShoppFactura = async (req, res) => {
 
-    const body = req.body; 
-    let defaultClient = SibApiV3Sdk.ApiClient.instance; 
-    let apiKey = defaultClient.authentications['api-key']; 
-    apiKey.apiKey = process.env.SENDMAILTOKEN; 
-    
-    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi(); 
-    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail(); 
-    sendSmtpEmail.subject = "ALL IN ONE"; 
-    sendSmtpEmail.htmlContent = body.html; 
-    sendSmtpEmail.sender = { name: "All In One", email: "eduardo.eduardomayorga.mayorga@gmail.com" }; 
-    sendSmtpEmail.to = [{ email: body.email, name: "All In One" }]; 
-    
+    const body = req.body;
     const pathPdf = body.pathPdf;
     const pathXml = body.pathXml;
-   
-   
-    try { 
-        const [base64Pdf, base64Xml] = await Promise.all([ 
-            fs.promises.readFile(pathPdf, { encoding: 'base64' }), 
-            fs.promises.readFile(pathXml, { encoding: 'base64' }) 
-        ]); 
-        
-        
+
+    orderEmailDebug.logOrderEmailEnv('invoice:start');
+    orderEmailDebug.logOrderEmail('invoice:request-body', {
+        email: body.email,
+        htmlLength: body.html ? body.html.length : 0,
+        pathPdf,
+        pathXml,
+        pdfExists: pathPdf ? fs.existsSync(pathPdf) : false,
+        xmlExists: pathXml ? fs.existsSync(pathXml) : false,
+    });
+
+    try {
+        if (!process.env.SENDMAILTOKEN) {
+            orderEmailDebug.logOrderEmail('invoice:error', { message: 'Falta SENDMAILTOKEN en .env' });
+            return response.error(req, res, { message: 'Configuración de correo incompleta' }, 500);
+        }
+
+        if (!body.email) {
+            orderEmailDebug.logOrderEmail('invoice:error', { message: 'Email destinatario vacío' });
+            return response.error(req, res, { message: 'Email requerido' }, 422);
+        }
+
+        let defaultClient = SibApiV3Sdk.ApiClient.instance;
+        let apiKey = defaultClient.authentications['api-key'];
+        apiKey.apiKey = process.env.SENDMAILTOKEN;
+
+        let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+        sendSmtpEmail.subject = "ALL IN ONE";
+        sendSmtpEmail.htmlContent = body.html;
+        sendSmtpEmail.sender = { name: "All In One", email: "eduardo.eduardomayorga.mayorga@gmail.com" };
+        sendSmtpEmail.to = [{ email: body.email, name: "All In One" }];
+
+        const [base64Pdf, base64Xml] = await Promise.all([
+            fs.promises.readFile(pathPdf, { encoding: 'base64' }),
+            fs.promises.readFile(pathXml, { encoding: 'base64' })
+        ]);
+
         sendSmtpEmail.attachment = [
-            { 
-                name: path.basename(pathPdf), 
-                content: base64Pdf 
-            }, 
-            { 
-                name: path.basename(pathXml), 
-                content: base64Xml 
-            } 
-        ]; 
-        
-        apiInstance.sendTransacEmail(sendSmtpEmail) 
-        .then(function (data) { 
-            const jsonResp = 
-            { 
-                url: 'API called successfully. Returned data: ' + JSON.stringify(data), 
-                errorCode: 200 
-            }; 
-            return res.status(200).send(jsonResp); 
-        })
-        .catch(function (error) {
-             return res.status(500).send(error.response.data); 
-            }); 
-        } catch (error) {
-             console.error('Error al leer los archivos:', error); 
-             return res.status(500).send({ message: 'Error al leer los archivos', error }); 
-        } 
+            { name: path.basename(pathPdf), content: base64Pdf },
+            { name: path.basename(pathXml), content: base64Xml }
+        ];
+
+        orderEmailDebug.logOrderEmail('invoice:send', {
+            to: body.email,
+            subject: sendSmtpEmail.subject,
+            attachments: [path.basename(pathPdf), path.basename(pathXml)],
+        });
+
+        const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+
+        orderEmailDebug.logOrderEmail('invoice:success', {
+            messageId: data.messageId,
+            data,
+        });
+
+        return res.status(200).send({
+            url: 'API called successfully. Returned data: ' + JSON.stringify(data),
+            errorCode: 200
+        });
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            orderEmailDebug.logOrderEmail('invoice:error', {
+                message: 'No se encontró el archivo PDF o XML',
+                pathPdf,
+                pathXml,
+                errorMessage: error.message,
+            });
+            return response.error(req, res, { message: 'Error al leer los archivos adjuntos' }, 500);
+        }
+
+        orderEmailDebug.logOrderEmailApiError('invoice:error', error);
+        const message = (error.response && error.response.body && error.response.body.message)
+            || error.message
+            || 'No se pudo enviar el correo de factura';
+        return response.error(req, res, { message }, 500);
+    }
 };
 
 
@@ -362,40 +392,87 @@ const sendMailShoppingCar = async (req, res) => {
 
     const body = req.body;
 
-    let defaultClient = SibApiV3Sdk.ApiClient.instance;
-
-    let apiKey = defaultClient.authentications['api-key'];
-    apiKey.apiKey =  process.env.SENDMAILTOKEN;
-
-    let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
-    let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
-    sendSmtpEmail.subject = "ALL IN ONE";
-    sendSmtpEmail.htmlContent = body.html;
-    sendSmtpEmail.sender = { "name": "All In One", "email": "eduardo.eduardomayorga.mayorga@gmail.com" };
-    sendSmtpEmail.to = [{ "email": body.email, "name": "All In One" }];
-
-    apiInstance.sendTransacEmail(sendSmtpEmail).then(function (data) {
-        const adminEmails = process.env.ADMIN_EMAILS.split(',');
-        const emailsToSend = adminEmails.map(email => {
-            return {
-                "email": email,
-                "name": "All In One"
-            }
-        });
-        sendSmtpEmail.to = emailsToSend;
-        sendSmtpEmail.subject = "ALL IN ONE - Nueva orden del usuario con email: " + body.email + " y nombre: " + body.name;
-        apiInstance.sendTransacEmail(sendSmtpEmail).then(function (data) {
-            const jsonResp2 = {
-                url: 'API called successfully. Returned data: ' + JSON.stringify(data),
-                errorCode: 200
-            }
-            return res.status(200).send(jsonResp2)
-        })
-    }, function (error) {
-        console.log(error);
-        return res.status(200).send(error.response.data)
+    orderEmailDebug.logOrderEmailEnv('order:start');
+    orderEmailDebug.logOrderEmail('order:request-body', {
+        email: body.email,
+        name: body.name,
+        htmlLength: body.html ? body.html.length : 0,
     });
+
+    try {
+        if (!process.env.SENDMAILTOKEN) {
+            orderEmailDebug.logOrderEmail('order:error', { message: 'Falta SENDMAILTOKEN en .env' });
+            return response.error(req, res, { message: 'Configuración de correo incompleta' }, 500);
+        }
+
+        if (!body.email) {
+            orderEmailDebug.logOrderEmail('order:error', { message: 'Email destinatario vacío' });
+            return response.error(req, res, { message: 'Email requerido' }, 422);
+        }
+
+        let defaultClient = SibApiV3Sdk.ApiClient.instance;
+        let apiKey = defaultClient.authentications['api-key'];
+        apiKey.apiKey = process.env.SENDMAILTOKEN;
+
+        let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
+        let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
+
+        sendSmtpEmail.subject = "ALL IN ONE";
+        sendSmtpEmail.htmlContent = body.html;
+        sendSmtpEmail.sender = { name: "All In One", email: "eduardo.eduardomayorga.mayorga@gmail.com" };
+        sendSmtpEmail.to = [{ email: body.email, name: body.name || "All In One" }];
+
+        orderEmailDebug.logOrderEmail('order:send-customer', {
+            to: body.email,
+            name: body.name,
+            subject: sendSmtpEmail.subject,
+        });
+
+        const customerResult = await apiInstance.sendTransacEmail(sendSmtpEmail);
+
+        orderEmailDebug.logOrderEmail('order:send-customer:success', {
+            messageId: customerResult.messageId,
+            data: customerResult,
+        });
+
+        const adminEmailsRaw = process.env.ADMIN_EMAILS;
+        if (!adminEmailsRaw) {
+            orderEmailDebug.logOrderEmail('order:warning', {
+                message: 'ADMIN_EMAILS no configurado — no se envía copia a administradores',
+            });
+            return res.status(200).send({
+                url: 'Correo al cliente enviado',
+                errorCode: 200,
+            });
+        }
+
+        const adminEmails = adminEmailsRaw.split(',').map((email) => email.trim()).filter(Boolean);
+        sendSmtpEmail.to = adminEmails.map((email) => ({ email, name: "All In One" }));
+        sendSmtpEmail.subject = "ALL IN ONE - Nueva orden del usuario con email: " + body.email + " y nombre: " + body.name;
+
+        orderEmailDebug.logOrderEmail('order:send-admin', {
+            to: adminEmails,
+            subject: sendSmtpEmail.subject,
+        });
+
+        const adminResult = await apiInstance.sendTransacEmail(sendSmtpEmail);
+
+        orderEmailDebug.logOrderEmail('order:send-admin:success', {
+            messageId: adminResult.messageId,
+            data: adminResult,
+        });
+
+        return res.status(200).send({
+            url: 'API called successfully. Returned data: ' + JSON.stringify(adminResult),
+            errorCode: 200,
+        });
+    } catch (error) {
+        orderEmailDebug.logOrderEmailApiError('order:error', error);
+        const message = (error.response && error.response.body && error.response.body.message)
+            || error.message
+            || 'No se pudo enviar el correo del pedido';
+        return response.error(req, res, { message }, 500);
+    }
 
 }
 
@@ -405,13 +482,6 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
 
         const body = req.body;
         let orden = body.orden;
-
-        payphoneDebug.logPayphoneEnv('confirm:start');
-        payphoneDebug.logPayphone('confirm:request-body', {
-            orden,
-            id: body.id,
-            clientId: body.clientId,
-        });
 
         var data = JSON.stringify({
             "id": body.id,
@@ -428,18 +498,7 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
             data: data
         };
 
-        payphoneDebug.logPayphone('confirm:axios-config', {
-            url: config.url,
-            authorizationBearerToken: process.env.PAYTOKENBTN,
-            payload: JSON.parse(data),
-        });
-
         const respuesta = await axios(config);
-
-        payphoneDebug.logPayphone('confirm:success', {
-            status: respuesta.status,
-            data: respuesta.data,
-        });
 
         if (respuesta.data && respuesta.data.statusCode) {
             await shoppingModel.putShoppingUpdatePago(orden);
@@ -458,7 +517,6 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
 
         return res.status(200).send(jsonResp);
     } catch (error) {
-        payphoneDebug.logPayphoneAxiosError('confirm:error', error);
         const message = (error.response && error.response.data && error.response.data.message)
             || error.message
             || 'No se pudo confirmar el pago';
@@ -505,9 +563,6 @@ const ShppoingCarUrlPay = async (req, res) => {
     try {
 
         const body = req.body;
-
-        payphoneDebug.logPayphoneEnv('prepare:start');
-        payphoneDebug.logPayphone('prepare:incoming-body', { body });
 
         const orden = body.clientTransactionId ? String(body.clientTransactionId).split('@')[0] : null;
         if (orden) {
@@ -575,30 +630,7 @@ const ShppoingCarUrlPay = async (req, res) => {
 
         if (storeId) {
             payphonePayload.storeId = storeId;
-        } else {
-            payphoneDebug.logPayphone('prepare:warning', {
-                message: 'Falta PAYPHONE_STORE_ID en .env — la documentación Payphone lo marca como obligatorio (Identificador en Developer)',
-            });
         }
-
-        payphoneDebug.logPayphone('prepare:computed', {
-            orden,
-            responseUrl,
-            storeId,
-            amountCheck: {
-                amount: payphonePayload.amount,
-                amountWithTax: payphonePayload.amountWithTax,
-                amountWithoutTax: payphonePayload.amountWithoutTax,
-                tax: payphonePayload.tax,
-                service: payphonePayload.service,
-                tip: payphonePayload.tip,
-                expectedSum: (parseInt(payphonePayload.amountWithoutTax, 10) || 0)
-                    + (parseInt(payphonePayload.amountWithTax, 10) || 0)
-                    + (parseInt(payphonePayload.tax, 10) || 0)
-                    + (parseInt(payphonePayload.service, 10) || 0)
-                    + (parseInt(payphonePayload.tip, 10) || 0),
-            },
-        });
 
         var data = JSON.stringify(payphonePayload);
 
@@ -612,19 +644,7 @@ const ShppoingCarUrlPay = async (req, res) => {
             data: data
         };
 
-        payphoneDebug.logPayphone('prepare:axios-config', {
-            url: config.url,
-            authorizationBearerToken: process.env.PAYTOKENBTN,
-            payload: payphonePayload,
-        });
-
         const respuesta = await axios(config);
-
-        payphoneDebug.logPayphone('prepare:success', {
-            status: respuesta.status,
-            payWithPayPhone: respuesta.data && respuesta.data.payWithPayPhone,
-            rawData: respuesta.data,
-        });
 
         const jsonResp = {
             url: respuesta.data.payWithPayPhone,
@@ -633,7 +653,6 @@ const ShppoingCarUrlPay = async (req, res) => {
 
         return res.status(200).send(jsonResp);
     } catch (error) {
-        payphoneDebug.logPayphoneAxiosError('prepare:error', error);
         const message = (error.response && error.response.data && error.response.data.message)
             || error.message
             || 'No se pudo generar el link de pago';

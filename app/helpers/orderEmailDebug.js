@@ -1,0 +1,49 @@
+const isOrderEmailDebugEnabled = () => String(process.env.ORDER_EMAIL_DEBUG || '1') !== '0';
+
+const logOrderEmail = (step, payload) => {
+	if (!isOrderEmailDebugEnabled()) {
+		return;
+	}
+
+	const entry = {
+		ts: new Date().toISOString(),
+		step,
+		...payload,
+	};
+
+	console.log(`[order-email] ${JSON.stringify(entry, null, 2)}`);
+};
+
+const readOrderEmailEnv = () => ({
+	SENDMAILTOKEN: process.env.SENDMAILTOKEN || null,
+	ADMIN_EMAILS: process.env.ADMIN_EMAILS || null,
+});
+
+const logOrderEmailEnv = (step) => {
+	const env = readOrderEmailEnv();
+	logOrderEmail(step, {
+		env,
+		notes: {
+			provider: 'Brevo (Sendinblue) sib-api-v3-sdk',
+			sendmailTokenConfigured: !!env.SENDMAILTOKEN,
+			adminEmailsConfigured: !!env.ADMIN_EMAILS,
+		},
+	});
+};
+
+const logOrderEmailApiError = (step, error) => {
+	logOrderEmail(step, {
+		errorMessage: error.message,
+		brevoBody: error.response && error.response.body,
+		brevoText: error.response && error.response.text,
+		brevoStatusCode: error.response && error.response.statusCode,
+	});
+};
+
+module.exports = {
+	isOrderEmailDebugEnabled,
+	logOrderEmail,
+	logOrderEmailEnv,
+	readOrderEmailEnv,
+	logOrderEmailApiError,
+};
