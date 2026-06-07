@@ -406,6 +406,8 @@ const sendMailShoppingCar = async (req, res) => {
     orderEmailDebug.logOrderEmail('order:request-body', {
         email: body.email,
         name: body.name,
+        order_number: body.order_number,
+        subject: body.subject,
         htmlLength: body.html ? body.html.length : 0,
     });
 
@@ -435,7 +437,12 @@ const sendMailShoppingCar = async (req, res) => {
         let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
         let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
 
-        sendSmtpEmail.subject = "ALL IN ONE";
+        const brandName = process.env.MAIL_BRAND_NAME || 'ALL IN ONE';
+        const orderNumber = body.order_number ? String(body.order_number) : null;
+        const customerSubject = body.subject
+            || (orderNumber ? `${brandName} - Pedido #${orderNumber}` : brandName);
+
+        sendSmtpEmail.subject = customerSubject;
         sendSmtpEmail.htmlContent = body.html;
         sendSmtpEmail.sender = sender;
         sendSmtpEmail.to = [{ email: body.email, name: body.name || "All In One" }];
@@ -467,7 +474,9 @@ const sendMailShoppingCar = async (req, res) => {
 
         const adminEmails = adminEmailsRaw.split(',').map((email) => email.trim()).filter(Boolean);
         sendSmtpEmail.to = adminEmails.map((email) => ({ email, name: "All In One" }));
-        sendSmtpEmail.subject = "ALL IN ONE - Nueva orden del usuario con email: " + body.email + " y nombre: " + body.name;
+        sendSmtpEmail.subject = orderNumber
+            ? `${brandName} - Nueva orden #${orderNumber} — ${body.name} (${body.email})`
+            : `${brandName} - Nueva orden — ${body.name} (${body.email})`;
 
         orderEmailDebug.logOrderEmail('order:send-admin', {
             from: sender,
