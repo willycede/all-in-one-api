@@ -150,15 +150,45 @@ const updateUserInfo = async (req,res) => {
     if (body.identification_number) {
       userData.identification_number = body.identification_number;
     }
-    if(body.password){
-      userData.password = bcrypt.hashSync(body.password, 10);
-    }
     const userUpdated = await userModel.updateUser({user:userData});
     return response.success(req,res,userUpdated[0],200)
   } catch (error) {
     return response.error(req,res,{message:`getUserById: ${error.message}`}, 422)
   }
   
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const body = req.body;
+    const id_users = parseInt(body.id_users, 10);
+
+    if (!id_users) {
+      return response.error(req, res, { message: 'El id del usuario es requerido' }, 422);
+    }
+
+    const tokenUserId = parseInt(req.userInfo && req.userInfo.id_users, 10);
+    if (tokenUserId !== id_users) {
+      return response.error(req, res, { message: 'No autorizado' }, 403);
+    }
+
+    const result = await userModel.changeUserPassword({
+      id_users,
+      current_password: body.current_password,
+      new_password: body.new_password,
+    });
+
+    if (result.errorMessage || (result.validationObject && Object.keys(result.validationObject).length > 0)) {
+      return response.error(req, res, {
+        message: result.errorMessage || 'No se pudo cambiar la contraseña',
+        validationObject: result.validationObject || {},
+      }, 422);
+    }
+
+    return response.success(req, res, { changed: true }, 200);
+  } catch (error) {
+    return response.error(req, res, { message: error.message }, 422);
+  }
 };
 
 module.exports = {  
@@ -168,5 +198,6 @@ module.exports = {
   loginAdmin,
   getUserById,
   updateUserInfo,
-  resetPassword
+  resetPassword,
+  changePassword,
 };

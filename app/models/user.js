@@ -132,6 +132,49 @@ const updateUser = async ({ user }, trx) => {
     .update(user);
     return await getUserById({id_users: user.id_users});
 }
+
+const changeUserPassword = async ({ id_users, current_password, new_password }) => {
+  const validationObject = {};
+  let errorMessage = '';
+
+  if (!current_password) {
+    validationObject.current_password = 'La contraseña actual es requerida';
+  }
+  if (!new_password) {
+    validationObject.new_password = 'La nueva contraseña es requerida';
+  } else if (String(new_password).length < 8) {
+    validationObject.new_password = 'La nueva contraseña debe tener al menos 8 caracteres';
+  }
+
+  if (Object.keys(validationObject).length > 0) {
+    return { validationObject, errorMessage };
+  }
+
+  const userRows = await getUserById({ id_users });
+  const user = userRows && userRows[0];
+  if (!user) {
+    return { errorMessage: 'Usuario no encontrado', validationObject: {} };
+  }
+
+  if (!bcrypt.compareSync(current_password, user.password)) {
+    validationObject.current_password = 'La contraseña actual no es correcta';
+    return { validationObject, errorMessage };
+  }
+
+  if (bcrypt.compareSync(new_password, user.password)) {
+    validationObject.new_password = 'La nueva contraseña debe ser diferente a la actual';
+    return { validationObject, errorMessage };
+  }
+
+  await knex('users')
+    .where({ id_users })
+    .update({
+      password: bcrypt.hashSync(new_password, 10),
+      updated_at: knex.fn.now(),
+    });
+
+  return { success: true };
+};
 const deleteUser= async({id_users}, trx) =>{
   await (trx || knex)('users')
   .where({ id_users })
@@ -346,5 +389,6 @@ module.exports = {
   createUserLogic, 
   validateUserLoginData,
   getUserByEmailRolClient,
-  sendResetPasswordEmail
+  sendResetPasswordEmail,
+  changeUserPassword,
 };
