@@ -3,7 +3,7 @@ const fs = require('fs');
 const shoppingModel = require('../models/shopping')
 const couponsModel = require('../models/coupons');
 const response = require('../config/response');
-const cartValidation = require('../helpers/cartValidation');
+const payphoneCheckout = require('../helpers/payphoneCheckout');
 const orderEmailDebug = require('../helpers/orderEmailDebug');
 
 const SibApiV3Sdk = require('sib-api-v3-sdk');
@@ -563,100 +563,92 @@ const ShppoingCarUrlPay = async (req, res) => {
     try {
 
         const body = req.body;
+        const orderId = parseInt(
+            body.id_shopping_car
+            || (body.clientTransactionId ? String(body.clientTransactionId).split('@')[0] : null),
+            10
+        );
 
-        const orden = body.clientTransactionId ? String(body.clientTransactionId).split('@')[0] : null;
-        if (orden) {
-            const docValidation = await cartValidation.validateShoppingCartDocuments(parseInt(orden, 10));
-            if (!docValidation.valid) {
-                const missingItems = docValidation.items
-                    .filter((item) => item.requires_documents && !item.valid)
-                    .map((item) => `${item.product_name}: ${item.missing_documents.join(', ')}`)
-                    .join('; ');
-
-                return response.error(req, res, {
-                    message: `Faltan documentos obligatorios antes de pagar. ${missingItems}`,
-                    validation: docValidation,
-                }, 422);
-            }
-
-            const cartRows = await shoppingModel.getShoppingCar(parseInt(orden, 10));
-            const cart = cartRows && cartRows[0];
-            if (cart && cart.coupon_code) {
-                const subtotal = await couponsModel.getCartSubtotal(parseInt(orden, 10));
-                const couponValidation = await couponsModel.validateCouponForCart(cart.coupon_code, subtotal);
-                if (!couponValidation.valid) {
-                    return response.error(req, res, {
-                        message: couponValidation.message || 'El cupón aplicado ya no es válido',
-                    }, 422);
-                }
-
-                const storedDiscount = parseFloat(cart.coupon_discount) || 0;
-                const expectedDiscount = couponValidation.discountAmount;
-                if (Math.abs(storedDiscount - expectedDiscount) > 0.02) {
-                    return response.error(req, res, {
-                        message: 'El descuento del cupón no coincide con el carrito. Vuelve a aplicar el cupón.',
-                    }, 422);
-                }
-
-                const expectedSubtotalCents = Math.round(Math.max(0, subtotal - expectedDiscount) * 100);
-                const sentSubtotalCents = parseInt(body.amountWithTax, 10);
-                if (!Number.isNaN(sentSubtotalCents) && Math.abs(expectedSubtotalCents - sentSubtotalCents) > 1) {
-                    return response.error(req, res, {
-                        message: 'El monto enviado a Payphone no coincide con el descuento del cupón',
-                    }, 422);
-                }
-            }
+        if (!orderId || Number.isNaN(orderId)) {
+            return response.error(req, res, { message: 'id_shopping_car es requerido' }, 422);
         }
 
-        const responseUrl = process.env.PAYPHONE_RESPONSE_URL
-            || `${process.env.FRONTEND_URL || 'http://localhost:8082'}/payment/ValidatePayment`;
+        const userId = req.userInfo && req.userInfo.id_users;
+        const sentSubtotalCents = parseInt(body.amountWithTax, 10);
 
-        const storeId = process.env.PAYPHONE_STORE_ID || process.env.PAYSTOREID || null;
-
-        const payphonePayload = {
-            responseUrl: responseUrl,
-            amount: body.amount,
-            tax: body.tax,
-            amountWithTax: body.amountWithTax,
-            amountWithoutTax: body.amountWithoutTax != null ? body.amountWithoutTax : 0,
-            service: body.service,
-            tip: body.tip,
-            currency: 'USD',
-            reference: body.reference || 'COBRO, ALL IN ONE',
-            clientTransactionId: body.clientTransactionId,
-            oneTime: false,
-            expireIn: 0,
-        };
-
-        if (storeId) {
-            payphonePayload.storeId = storeId;
-        }
-
-        var data = JSON.stringify(payphonePayload);
-
-        var config = {
-            method: 'post',
-            url: process.env.PAYURLBTN,
-            headers: {
-                'Authorization': 'Bearer ' + process.env.PAYTOKENBTN,
-                'Content-Type': 'application/json'
+        const result = await payphoneCheckout.preparePaymentLink({
+            orderId,
+            userId,
+            amounts: {
+                amount: body.amount,
+                tax: body.tax,
+                amountWithTax: body.amountWithTax,
+                amountWithoutTax: body.amountWithoutTax != null ? body.amountWithoutTax : 0,
+                service: body.service,
+                tip: body.tip,
             },
-            data: data
-        };
+            reference: body.reference,
+            clientTransactionId: body.forceNewTransaction
+                ? payphoneCheckout.buildClientTransactionId(orderId)
+                : (body.clientTransactionId || payphoneCheckout.buildClientTransactionId(orderId)),
+            allowActiveCart: true,
+            sentSubtotalCents: Number.isNaN(sentSubtotalCents) ? null : sentSubtotalCents,
+        });
 
-        const respuesta = await axios(config);
-
-        const jsonResp = {
-            url: respuesta.data.payWithPayPhone,
-            errorCode: 200
-        }
-
-        return res.status(200).send(jsonResp);
+        return res.status(200).send({
+            url: result.url,
+            clientTransactionId: result.clientTransactionId,
+            errorCode: 200,
+        });
     } catch (error) {
+        const statusCode = error.statusCode || 422;
         const message = (error.response && error.response.data && error.response.data.message)
             || error.message
             || 'No se pudo generar el link de pago';
-        return response.error(req, res, { message }, 422);
+        const payload = { message };
+        if (error.validation) {
+            payload.validation = error.validation;
+        }
+        return response.error(req, res, payload, statusCode);
+    }
+
+};
+
+const regeneratePayphoneLink = async (req, res) => {
+
+    try {
+        const orderId = parseInt(req.body.id_shopping_car, 10);
+        if (!orderId || Number.isNaN(orderId)) {
+            return response.error(req, res, { message: 'id_shopping_car es requerido' }, 422);
+        }
+
+        const userId = req.userInfo && req.userInfo.id_users;
+        const cart = await payphoneCheckout.getOrderForPayment(orderId, userId);
+        payphoneCheckout.assertPayableOrderStatus(cart, { allowActiveCart: false });
+
+        const result = await payphoneCheckout.preparePaymentLink({
+            orderId,
+            userId,
+            reference: `PAGO ORDEN DE PAGO #${orderId}`,
+            clientTransactionId: payphoneCheckout.buildClientTransactionId(orderId),
+            allowActiveCart: false,
+        });
+
+        return res.status(200).send({
+            url: result.url,
+            clientTransactionId: result.clientTransactionId,
+            errorCode: 200,
+        });
+    } catch (error) {
+        const statusCode = error.statusCode || 422;
+        const message = (error.response && error.response.data && error.response.data.message)
+            || error.message
+            || 'No se pudo regenerar el link de pago';
+        const payload = { message };
+        if (error.validation) {
+            payload.validation = error.validation;
+        }
+        return response.error(req, res, payload, statusCode);
     }
 
 };
@@ -776,6 +768,7 @@ module.exports = {
     getShoppCarDetails,
     getInvoiceData,
     ShppoingCarUrlPay,
+    regeneratePayphoneLink,
     putUpdateShoppingPay,
     putUpdateInoviceState,
     ShppoingCarUrlPayConfirm,
