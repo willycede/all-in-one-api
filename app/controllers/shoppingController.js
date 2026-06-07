@@ -4,6 +4,7 @@ const shoppingModel = require('../models/shopping')
 const couponsModel = require('../models/coupons');
 const response = require('../config/response');
 const cartValidation = require('../helpers/cartValidation');
+const payphoneDebug = require('../helpers/payphoneDebug');
 
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 
@@ -405,12 +406,17 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
         const body = req.body;
         let orden = body.orden;
 
+        payphoneDebug.logPayphoneEnv('confirm:start');
+        payphoneDebug.logPayphone('confirm:request-body', {
+            orden,
+            id: body.id,
+            clientId: body.clientId,
+        });
+
         var data = JSON.stringify({
             "id": body.id,
             "clientTxId": body.clientId
         });
-
-
 
         var config = {
             method: 'post',
@@ -422,9 +428,18 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
             data: data
         };
 
-         //console.log(config);
+        payphoneDebug.logPayphone('confirm:axios-config', {
+            url: config.url,
+            authorizationBearerToken: process.env.PAYTOKENBTN,
+            payload: JSON.parse(data),
+        });
 
         const respuesta = await axios(config);
+
+        payphoneDebug.logPayphone('confirm:success', {
+            status: respuesta.status,
+            data: respuesta.data,
+        });
 
         if (respuesta.data && respuesta.data.statusCode) {
             await shoppingModel.putShoppingUpdatePago(orden);
@@ -443,6 +458,7 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
 
         return res.status(200).send(jsonResp);
     } catch (error) {
+        payphoneDebug.logPayphoneAxiosError('confirm:error', error);
         const message = (error.response && error.response.data && error.response.data.message)
             || error.message
             || 'No se pudo confirmar el pago';
@@ -489,6 +505,9 @@ const ShppoingCarUrlPay = async (req, res) => {
     try {
 
         const body = req.body;
+
+        payphoneDebug.logPayphoneEnv('prepare:start');
+        payphoneDebug.logPayphone('prepare:incoming-body', { body });
 
         const orden = body.clientTransactionId ? String(body.clientTransactionId).split('@')[0] : null;
         if (orden) {
@@ -537,22 +556,51 @@ const ShppoingCarUrlPay = async (req, res) => {
         const responseUrl = process.env.PAYPHONE_RESPONSE_URL
             || `${process.env.FRONTEND_URL || 'http://localhost:8082'}/payment/ValidatePayment`;
 
-        var data = JSON.stringify({
-            "responseUrl": responseUrl,
-            "amount": body.amount,
-            "tax": body.tax,
-            "amountWithTax": body.amountWithTax,
-            "amountWithoutTax": body.amountWithoutTax,
-            "service": body.service,
-            "tip": body.tip,
-            "currency": "USD",
-            "reference": "COBRO, ALL IN ONE",
-            "clientTransactionId": body.clientTransactionId,
-            "oneTime": false,
-            "expireIn": 0
+        const storeId = process.env.PAYPHONE_STORE_ID || process.env.PAYSTOREID || null;
+
+        const payphonePayload = {
+            responseUrl: responseUrl,
+            amount: body.amount,
+            tax: body.tax,
+            amountWithTax: body.amountWithTax,
+            amountWithoutTax: body.amountWithoutTax != null ? body.amountWithoutTax : 0,
+            service: body.service,
+            tip: body.tip,
+            currency: 'USD',
+            reference: body.reference || 'COBRO, ALL IN ONE',
+            clientTransactionId: body.clientTransactionId,
+            oneTime: false,
+            expireIn: 0,
+        };
+
+        if (storeId) {
+            payphonePayload.storeId = storeId;
+        } else {
+            payphoneDebug.logPayphone('prepare:warning', {
+                message: 'Falta PAYPHONE_STORE_ID en .env — la documentación Payphone lo marca como obligatorio (Identificador en Developer)',
+            });
+        }
+
+        payphoneDebug.logPayphone('prepare:computed', {
+            orden,
+            responseUrl,
+            storeId,
+            amountCheck: {
+                amount: payphonePayload.amount,
+                amountWithTax: payphonePayload.amountWithTax,
+                amountWithoutTax: payphonePayload.amountWithoutTax,
+                tax: payphonePayload.tax,
+                service: payphonePayload.service,
+                tip: payphonePayload.tip,
+                expectedSum: (parseInt(payphonePayload.amountWithoutTax, 10) || 0)
+                    + (parseInt(payphonePayload.amountWithTax, 10) || 0)
+                    + (parseInt(payphonePayload.tax, 10) || 0)
+                    + (parseInt(payphonePayload.service, 10) || 0)
+                    + (parseInt(payphonePayload.tip, 10) || 0),
+            },
         });
 
-
+        var data = JSON.stringify(payphonePayload);
 
         var config = {
             method: 'post',
@@ -564,9 +612,20 @@ const ShppoingCarUrlPay = async (req, res) => {
             data: data
         };
 
-       
+        payphoneDebug.logPayphone('prepare:axios-config', {
+            url: config.url,
+            authorizationBearerToken: process.env.PAYTOKENBTN,
+            payload: payphonePayload,
+        });
 
         const respuesta = await axios(config);
+
+        payphoneDebug.logPayphone('prepare:success', {
+            status: respuesta.status,
+            payWithPayPhone: respuesta.data && respuesta.data.payWithPayPhone,
+            rawData: respuesta.data,
+        });
+
         const jsonResp = {
             url: respuesta.data.payWithPayPhone,
             errorCode: 200
@@ -574,6 +633,7 @@ const ShppoingCarUrlPay = async (req, res) => {
 
         return res.status(200).send(jsonResp);
     } catch (error) {
+        payphoneDebug.logPayphoneAxiosError('prepare:error', error);
         const message = (error.response && error.response.data && error.response.data.message)
             || error.message
             || 'No se pudo generar el link de pago';

@@ -56,7 +56,9 @@ Ver `.env` para:
 - `DB_*` — MySQL
 - `JWT_SECRET_KEY`
 - `PAYURLBTN`, `PAYTOKENBTN`, `PAYURLBTNCONFIRM`
+- `PAYPHONE_STORE_ID` (Identificador de sucursal en Payphone Developer; obligatorio en Prepare)
 - `PAYPHONE_RESPONSE_URL`, `FRONTEND_URL`
+- `PAYPHONE_DEBUG=1` — logs detallados de Payphone en consola (incluye token; poner `0` en prod estable)
 - `URLAPIFELECTRONICA`, `PATHCOMPROBANTE`, `PATHJASPER`
 
 ## Documentación de flujos
