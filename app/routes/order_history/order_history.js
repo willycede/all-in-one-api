@@ -21,5 +21,11 @@ router.post(
 	assertSelfUser,
 	orderHistoryController.reprocessInvoice
 );
+router.post(
+	'/repeat_order/:id_shopping_car/:id_user',
+	verifyToken,
+	assertSelfUser,
+	orderHistoryController.repeatOrder
+);
 
 module.exports = router;

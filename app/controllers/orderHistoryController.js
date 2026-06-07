@@ -1,5 +1,6 @@
 const orderHistoriModel = require('../models/order_history');
 const orderInvoiceModel = require('../models/order_invoice');
+const orderRepeatModel = require('../models/order_repeat');
 const response = require('../config/response');
 
 const getOrdersHistory = async (req, res) => {
@@ -49,8 +50,21 @@ const reprocessInvoice = async (req, res) => {
 	}
 };
 
+const repeatOrder = async (req, res) => {
+	try {
+		const id_shopping_car = parseInt(req.params.id_shopping_car, 10);
+		const id_user = parseInt(req.params.id_user, 10);
+
+		const result = await orderRepeatModel.repeatOrderForUser(id_shopping_car, id_user);
+		return response.success(req, res, result, 200);
+	} catch (error) {
+		return response.error(req, res, { message: error.message }, 422);
+	}
+};
+
 module.exports = {
 	getOrdersHistory,
 	deleteHistory,
 	reprocessInvoice,
+	repeatOrder,
 };
