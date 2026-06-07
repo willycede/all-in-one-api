@@ -6,7 +6,7 @@ const getClientIp = (req) => {
     if (forwarded) {
         return forwarded.toString().split(',')[0].trim();
     }
-    return req.ip || req.connection?.remoteAddress || null;
+    return req.ip || (req.connection && req.connection.remoteAddress) || null;
 };
 
 const listActive = async (req, res) => {

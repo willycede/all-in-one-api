@@ -373,14 +373,14 @@ const recalculateShoppingCarTotals = async (id_shopping_car, trx) => {
         .first();
 
     const body = {
-        id_user: shoppingCar?.id_user,
+        id_user: shoppingCar && shoppingCar.id_user,
         shopping_car_quantity: shopCarDetails.length,
         shopping_car_subtotal: parseFloat(subtotalshop).toFixed(6),
         shopping_car_total_discount: parseFloat(totaldiscount).toFixed(6),
         shopping_car_iva: parseFloat(totalival).toFixed(6),
         shopping_car_total: parseFloat(total).toFixed(6),
-        status: shoppingCar?.status || generalConstants.STATUS_ACTIVE,
-        url_payphone: shoppingCar?.url_payphone,
+        status: (shoppingCar && shoppingCar.status) || generalConstants.STATUS_ACTIVE,
+        url_payphone: shoppingCar && shoppingCar.url_payphone,
     };
 
     await putShoppingUpdate(id_shopping_car, { body }, trx);

@@ -1,6 +1,39 @@
 require('dotenv').config();
 const db = require('../knex');
-const { seedDefaultCoupons } = require('../../models/coupons');
+const generalConstants = require('../../constants/constants');
+
+const DEFAULT_COUPONS = [
+	{
+		code: 'ALLINONE10',
+		description: '10% de descuento en tu compra',
+		discount_type: 'percent',
+		discount_value: 10,
+		min_purchase: 0,
+		max_uses: null,
+	},
+	{
+		code: 'BIENVENIDO25',
+		description: '$25 de descuento en compras mayores a $100',
+		discount_type: 'fixed',
+		discount_value: 25,
+		min_purchase: 100,
+		max_uses: null,
+	},
+];
+
+async function seedDefaultCoupons() {
+	for (let i = 0; i < DEFAULT_COUPONS.length; i += 1) {
+		const item = DEFAULT_COUPONS[i];
+		const exists = await db('coupons').where({ code: item.code }).first();
+		if (!exists) {
+			await db('coupons').insert({
+				...item,
+				status: generalConstants.STATUS_ACTIVE,
+				used_count: 0,
+			});
+		}
+	}
+}
 
 const ensureCoupons = async () => {
 	const hasCoupons = await db.schema.hasTable('coupons');

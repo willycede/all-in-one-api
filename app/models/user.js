@@ -311,15 +311,15 @@ const createUserLogic = async (
            id_users: user.id_users,
            document_key: consent.document_key,
            version: consent.version,
-           ip: consentContext?.ip || null,
-           user_agent: consentContext?.user_agent || null,
+           ip: (consentContext && consentContext.ip) || null,
+           user_agent: (consentContext && consentContext.user_agent) || null,
          });
        }
      }
 
      return user;
   } catch (error) {
-    console.log("createUserLogic error", error?.message ? error?.message : error)
+    console.log("createUserLogic error", (error && error.message) ? error.message : error)
     throw error;
   }
 
