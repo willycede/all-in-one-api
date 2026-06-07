@@ -13,6 +13,7 @@ const db = require('../knex');
 const MIGRATIONS_DIR = path.join(__dirname, '../migrations');
 const SKIP = new Set([
 	'20260606120000_create_user_favorites_table.js',
+	'20260608120000_billing_settings_and_invoice_metadata.js',
 ]);
 
 async function ensureKnexMetaTables() {

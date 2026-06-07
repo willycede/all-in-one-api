@@ -32,6 +32,7 @@ const runMigrations = async () => {
 };
 
 const { seedDefaultCoupons } = require('./coupons');
+const { ensureBillingSchema } = require('./billingSchema');
 
 const ensureUserFavoritesTable = async () => {
 	const exists = await db.schema.hasTable('user_favorites');
@@ -80,10 +81,19 @@ const ensureCouponsSetup = async () => {
 	await seedDefaultCoupons();
 };
 
+const ensureBillingSetup = async () => {
+	try {
+		await ensureBillingSchema(db);
+	} catch (error) {
+		console.error('[migrations] Error aplicando esquema billing:', error.message);
+	}
+};
+
 const testDB = async () => {
 	await runMigrations();
 	await ensureUserFavoritesTable();
 	await ensureCouponsSetup();
+	await ensureBillingSetup();
 	await db.raw('SELECT 1');
 	console.log('Database connected successfully');
 };
