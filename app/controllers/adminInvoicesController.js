@@ -1,6 +1,7 @@
 const adminInvoicesModel = require('../models/adminInvoices');
 const response = require('../config/response');
 const { resolveInvoiceFile, streamInvoiceFile } = require('../helpers/invoiceFiles');
+const { getInvoiceAlertSummary } = require('../helpers/invoiceAdminAlerts');
 
 const listInvoices = async (req, res) => {
 	try {
@@ -44,8 +45,18 @@ const downloadInvoiceFile = async (req, res) => {
 	}
 };
 
+const getInvoiceAlerts = async (req, res) => {
+	try {
+		const summary = await getInvoiceAlertSummary();
+		return response.success(req, res, summary, 200);
+	} catch (error) {
+		return response.error(req, res, { message: error.message }, 422);
+	}
+};
+
 module.exports = {
 	listInvoices,
 	reprocessInvoice,
 	downloadInvoiceFile,
+	getInvoiceAlerts,
 };

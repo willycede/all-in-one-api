@@ -205,12 +205,20 @@ const createShoppingCar = async ({shopping_car}) => {
 
 };
 
-const createInvoiceData = async ({inv_data}) => {
+const buildInvoiceDataFromBody = (body) => ({
+    id_user: body.id_user,
+    type_id: body.type_id,
+    id_document: body.id_document,
+    razon_social: body.razon_social,
+    razon_comercial: body.razon_comercial,
+    address: body.address,
+    mail: body.mail,
+    principal: body.principal != null ? body.principal : 1,
+});
 
-    const dataInvoice = await knex('invoice_data').insert(inv_data)
-
+const createInvoiceData = async ({ inv_data }) => {
+    const dataInvoice = await knex('invoice_data').insert(inv_data);
     return dataInvoice;
-
 };
 
 const validateInvoceData = async ({
@@ -225,13 +233,13 @@ const validateInvoceData = async ({
     }
     
     
-    if(body.type_id === 'C' && body.id_document.length === 10){
-        validationObject.id_document = "La cantidad de caracteres para el registro de cedula es 10";
+    if(body.type_id === 'C' && body.id_document.length !== 10){
+        validationObject.id_document = "La cédula debe tener exactamente 10 caracteres";
     }
 
 
-    if(body.type_id === 'R' && body.id_document.length === 13){
-        validationObject.id_document = "La cantidad de caracteres para el registro de ruc es 13";
+    if(body.type_id === 'R' && body.id_document.length !== 13){
+        validationObject.id_document = "El RUC debe tener exactamente 13 caracteres";
     }
 
     if(body.type_id === 'C' && body.razon_social === ''){
@@ -455,6 +463,7 @@ module.exports = {
     createShoppingMetodo,
     createShoppingCar,
     createInvoiceData,
+    buildInvoiceDataFromBody,
     createShoppingDetailsMetodo,
     validateShoppinData,
     validateInvoceData,

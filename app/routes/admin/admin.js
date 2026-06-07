@@ -11,6 +11,7 @@ const uploadBillingSignature = require('../../config/multerBillingSignature');
 router.get('/dashboard/stats', verifyToken, assertAdmin, adminDashboardController.getDashboardStats);
 router.get('/orders', verifyToken, assertAdmin, adminOrdersController.listOrders);
 router.post('/orders/:id_shopping_car/cancel', verifyToken, assertAdmin, adminOrdersController.cancelOrder);
+router.get('/invoices/alerts', verifyToken, assertAdmin, adminInvoicesController.getInvoiceAlerts);
 router.get('/invoices', verifyToken, assertAdmin, adminInvoicesController.listInvoices);
 router.post('/invoices/:id_shopping_car/reprocess', verifyToken, assertAdmin, adminInvoicesController.reprocessInvoice);
 router.get('/invoices/:id_shopping_car/download/:type', verifyToken, assertAdmin, adminInvoicesController.downloadInvoiceFile);

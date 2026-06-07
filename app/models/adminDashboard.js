@@ -1,5 +1,6 @@
 const knex = require('../db/knex');
 const generalConstants = require('../constants/constants');
+const { getInvoiceAlertSummary } = require('../helpers/invoiceAdminAlerts');
 
 const PAID_STATUS = 3;
 
@@ -139,6 +140,8 @@ const getDashboardStats = async () => {
 		note: 'Alta rotación en los últimos 30 días — revisar inventario y reposición.',
 	}));
 
+	const invoiceAlerts = await getInvoiceAlertSummary();
+
 	return {
 		ordersToday: Number((ordersTodayResult && ordersTodayResult.total) || 0),
 		revenue: parseFloat((revenueResult && revenueResult.total) || 0),
@@ -168,6 +171,8 @@ const getDashboardStats = async () => {
 			revenue: parseFloat(row.revenue || 0),
 		})),
 		restockSuggestions,
+		invoiceAlertCount: invoiceAlerts.count,
+		failedInvoiceOrders: invoiceAlerts.orders,
 	};
 };
 

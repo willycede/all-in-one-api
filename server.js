@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const router = require("./app/routes/routes")
 const models = require("./app/models/migrations")
+const { startInvoiceRetryJob } = require("./app/jobs/invoiceRetryJob");
 const app = express();
 const morgan = require("morgan");
 const cors = require('cors');
@@ -50,6 +51,7 @@ const startServer = async () => {
 
   app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}.`);
+    startInvoiceRetryJob();
   });
 };
 

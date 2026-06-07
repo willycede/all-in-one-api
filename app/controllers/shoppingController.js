@@ -205,48 +205,37 @@ const createShoppingCarDetailsCtr = async (req, res) => {
 };
 
 const createInvoiceDataCtr = async (req, res) => {
+    let validationObject = {};
+    let RegistroDataInvoice = null;
 
-    let validationObject = {}
     try {
-
-        
         const body = req.body;
+        const id_user = parseInt(body.id_user, 10);
 
-        /*Validamos si existe un registro previo de un carrito activo al usuario */
-
-        var id_user = body.id_user
-
-        if (id_user > 0) {
-
-            
-
-                /*Insertamos la cabecera */
-
-                const validatedData = await shoppingModel.validateInvoceData({
-                    body
-                });
-
-                if (Object.entries(validatedData.validationObject).length > 0 || validatedData.errorMessage) {
-                    return response.error(req, res, { message: validatedData.errorMessage, validationObject: validatedData.validationObject }, 422);
-                }
-
-                const createdDataInvoice = await shoppingModel.createInvoiceData(
-                    {
-                        body
-                    }
-                );
-
-                RegistroDataInvoice = createdDataInvoice;
-
-
+        if (!id_user || id_user <= 0) {
+            return response.error(req, res, { message: 'id_user es requerido' }, 422);
         }
+
+        const validatedData = await shoppingModel.validateInvoceData({ body });
+
+        if (Object.entries(validatedData.validationObject).length > 0 || validatedData.errorMessage) {
+            return response.error(req, res, {
+                message: validatedData.errorMessage,
+                validationObject: validatedData.validationObject,
+            }, 422);
+        }
+
+        RegistroDataInvoice = await shoppingModel.createInvoiceData({
+            inv_data: shoppingModel.buildInvoiceDataFromBody(body),
+        });
 
         return response.success(req, res, RegistroDataInvoice, 200);
     } catch (error) {
-        return response.error(req, res, { message: `createdDataInoiceError: ${error.message}`, validationObject }, 422)
-        return response.error(req, res, { message: `createdDataInoiceError: ${error.message}` }, 422)
+        return response.error(req, res, {
+            message: `createdDataInoiceError: ${error.message}`,
+            validationObject,
+        }, 422);
     }
-
 };
 
 const getShoppCar = async (req, res) => {
@@ -522,6 +511,15 @@ const ShppoingCarUrlPayConfirm = async (req, res) => {
                 success: false,
                 step: 'order_not_found',
             }, 404);
+        }
+
+        const userId = req.userInfo && req.userInfo.id_users;
+        if (!userId || parseInt(cart.id_user, 10) !== parseInt(userId, 10)) {
+            return response.error(req, res, {
+                message: 'No autorizado para confirmar este pago',
+                success: false,
+                step: 'forbidden',
+            }, 403);
         }
 
         payphoneCheckout.assertPayableOrderStatus(cart, { allowActiveCart: false });
@@ -875,33 +873,6 @@ const resolvePaymentLink = async (req, res) => {
             ...payload,
         });
         return response.error(req, res, payload, statusCode);
-    }
-};
-
-
-const processInvoiceForOrder = async (req, res) => {
-    try {
-        const orderId = parseInt(req.body.orden || req.body.id_shopping_car, 10);
-        if (!orderId || Number.isNaN(orderId)) {
-            return response.error(req, res, { message: 'orden es requerida' }, 422);
-        }
-
-        const userId = req.userInfo && req.userInfo.id_users;
-        const cartRows = await shoppingModel.getShoppingCar(orderId);
-        const cart = cartRows && cartRows[0];
-
-        if (!cart) {
-            return response.error(req, res, { message: 'Orden no encontrada' }, 404);
-        }
-
-        if (userId && parseInt(cart.id_user, 10) !== parseInt(userId, 10)) {
-            return response.error(req, res, { message: 'No autorizado' }, 403);
-        }
-
-        const invoiceResult = await processInvoiceAfterPayment(orderId);
-        return response.success(req, res, invoiceResult, 200);
-    } catch (error) {
-        return response.error(req, res, { message: error.message }, 422);
     }
 };
 
