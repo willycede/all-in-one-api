@@ -1,4 +1,4 @@
-const knex = require('../knex');
+const knex = require('./knex');
 
 const INVOICE_COLUMNS = [
 	{ name: 'invoice_access_key', type: (t) => t.string('invoice_access_key', 64).nullable() },

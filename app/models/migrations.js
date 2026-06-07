@@ -32,7 +32,7 @@ const runMigrations = async () => {
 };
 
 const { seedDefaultCoupons } = require('./coupons');
-const { ensureBillingSchema } = require('./billingSchema');
+const { ensureBillingSchema } = require('../db/billingSchema');
 
 const ensureUserFavoritesTable = async () => {
 	const exists = await db.schema.hasTable('user_favorites');
