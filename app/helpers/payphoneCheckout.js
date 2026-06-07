@@ -2,6 +2,11 @@ const axios = require('axios');
 const cartValidation = require('./cartValidation');
 const couponsModel = require('../models/coupons');
 const shoppingModel = require('../models/shopping');
+const {
+	normalizePayphoneAmounts,
+	buildPayphoneAmountsFromParts,
+	toCents,
+} = require('./payphoneAmounts');
 
 const ORDER_STATUS_PENDING_PAYMENT = 2;
 const ORDER_STATUS_ACTIVE_CART = 1;
@@ -21,7 +26,12 @@ const extractPayphoneErrorMessage = (error) => {
 		if (data.error) return String(data.error);
 		if (data.title) return String(data.title);
 		if (Array.isArray(data.errors) && data.errors.length) {
-			return data.errors.map((item) => item.message || item).join('; ');
+			return data.errors.map((item) => {
+				if (Array.isArray(item.errorDescriptions) && item.errorDescriptions.length) {
+					return item.errorDescriptions.join('; ');
+				}
+				return item.message || JSON.stringify(item);
+			}).join('; ');
 		}
 		try {
 			return JSON.stringify(data);
@@ -56,22 +66,13 @@ const toPayphoneHttpPayload = (error, fallbackMessage) => ({
 	validation: error.validation || null,
 });
 
-const buildPayphoneAmountsFromCart = (cart) => {
-	const subtotal = Math.round(parseFloat(cart.shopping_car_subtotal || 0) * 100);
-	const couponDiscount = Math.round(parseFloat(cart.coupon_discount || 0) * 100);
-	const subtotalAfterCoupon = Math.max(0, subtotal - couponDiscount);
-	const tax = Math.round(parseFloat(cart.shopping_car_iva || 0) * 100);
-	const total = Math.round(parseFloat(cart.shopping_car_total || 0) * 100);
-
-	return {
-		amount: total,
-		tax,
-		amountWithTax: subtotalAfterCoupon,
-		amountWithoutTax: 0,
-		service: 0,
-		tip: 0,
-	};
-};
+const buildPayphoneAmountsFromCart = (cart) => (
+	buildPayphoneAmountsFromParts({
+		subtotal: cart.shopping_car_subtotal,
+		couponDiscount: cart.coupon_discount,
+		tax: cart.shopping_car_iva,
+	})
+);
 
 const isDuplicateClientTransactionError = (error) => {
 	const message = [
@@ -198,15 +199,25 @@ const buildPreparePayload = ({
 		|| `${process.env.FRONTEND_URL || 'http://localhost:8082'}/payment/ValidatePayment`;
 
 	const storeId = process.env.PAYPHONE_STORE_ID || process.env.PAYSTOREID || null;
+	const normalizedAmounts = normalizePayphoneAmounts(amounts);
+
+	if (amounts.amount != null && Math.round(Number(amounts.amount)) !== normalizedAmounts.amount) {
+		logPayphoneFailure('amount_normalized', {
+			orderId,
+			receivedAmount: amounts.amount,
+			normalizedAmount: normalizedAmounts.amount,
+			components: normalizedAmounts,
+		});
+	}
 
 	const payload = {
 		responseUrl,
-		amount: amounts.amount,
-		tax: amounts.tax,
-		amountWithTax: amounts.amountWithTax,
-		amountWithoutTax: amounts.amountWithoutTax != null ? amounts.amountWithoutTax : 0,
-		service: amounts.service || 0,
-		tip: amounts.tip || 0,
+		amount: normalizedAmounts.amount,
+		tax: normalizedAmounts.tax,
+		amountWithTax: normalizedAmounts.amountWithTax,
+		amountWithoutTax: normalizedAmounts.amountWithoutTax,
+		service: normalizedAmounts.service,
+		tip: normalizedAmounts.tip,
 		currency: 'USD',
 		reference: reference || `PAGO ORDEN DE PAGO #${orderId}`,
 		clientTransactionId,
@@ -305,7 +316,7 @@ const preparePaymentLink = async ({
 	assertPayableOrderStatus(cart, { allowActiveCart });
 	await validateOrderForPayment(orderId, { sentSubtotalCents });
 
-	const resolvedAmounts = amounts || buildPayphoneAmountsFromCart(cart);
+	const resolvedAmounts = normalizePayphoneAmounts(amounts || buildPayphoneAmountsFromCart(cart));
 	const resolvedClientTransactionId = clientTransactionId || buildClientTransactionId(orderId);
 	const payload = buildPreparePayload({
 		orderId,
