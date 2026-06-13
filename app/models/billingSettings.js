@@ -135,6 +135,7 @@ const updateSignaturePath = async (signaturePath, signaturePassword, updatedBy) 
 
 module.exports = {
 	getBillingSettings,
+	getBillingSettingsRow,
 	getBillingSettingsForClient,
 	getEffectiveBillingConfig,
 	updateBillingSettings,
