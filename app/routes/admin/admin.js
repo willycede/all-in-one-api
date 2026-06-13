@@ -20,6 +20,13 @@ router.get('/invoices/:id_shopping_car/download/:type', verifyToken, assertAdmin
 router.get('/billing/settings', verifyToken, assertAdmin, adminBillingController.getSettings);
 router.put('/billing/settings', verifyToken, assertAdmin, adminBillingController.updateSettings);
 router.post(
+	'/billing/signature/validate',
+	verifyToken,
+	assertAdmin,
+	uploadBillingSignature.single('signature'),
+	adminBillingController.validateSignatureUpload
+);
+router.post(
 	'/billing/signature',
 	verifyToken,
 	assertAdmin,

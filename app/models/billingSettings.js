@@ -1,4 +1,5 @@
 const knex = require('../db/knex');
+const { isCompanyProfileComplete } = require('../helpers/billingSignatureValidator');
 
 const SETTINGS_ID = 1;
 
@@ -27,11 +28,11 @@ const sanitizeForClient = (row) => {
 	return {
 		environment: row.environment || DEFAULTS.environment,
 		is_billing_enabled: !!row.is_billing_enabled,
-		company_ruc: row.company_ruc || '',
-		company_legal_name: row.company_legal_name || '',
-		company_trade_name: row.company_trade_name || '',
-		company_address: row.company_address || '',
-		company_email: row.company_email || '',
+		company_ruc: row.company_ruc != null ? String(row.company_ruc) : '',
+		company_legal_name: row.company_legal_name != null ? String(row.company_legal_name) : '',
+		company_trade_name: row.company_trade_name != null ? String(row.company_trade_name) : '',
+		company_address: row.company_address != null ? String(row.company_address) : '',
+		company_email: row.company_email != null ? String(row.company_email) : '',
 		establishment_code: row.establishment_code || '001',
 		emission_point: row.emission_point || '001',
 		service_url: row.service_url || process.env.URLAPIFELECTRONICA || '',
@@ -39,6 +40,7 @@ const sanitizeForClient = (row) => {
 		jasper_path: row.jasper_path || process.env.PATHJASPER || '',
 		has_signature: !!row.signature_path,
 		signature_file_name: row.signature_path ? row.signature_path.split(/[/\\]/).pop() : null,
+		company_profile_complete: isCompanyProfileComplete(row),
 		updated_at: row.updated_at,
 	};
 };
@@ -113,14 +115,20 @@ const updateBillingSettings = async (payload, updatedBy) => {
 	return getBillingSettingsForClient();
 };
 
-const updateSignaturePath = async (signaturePath, updatedBy) => {
+const updateSignaturePath = async (signaturePath, signaturePassword, updatedBy) => {
+	const data = {
+		signature_path: signaturePath,
+		updated_at: knex.fn.now(),
+		updated_by: updatedBy || null,
+	};
+
+	if (signaturePassword) {
+		data.signature_password = signaturePassword;
+	}
+
 	await knex('billing_settings')
 		.where({ id_billing_settings: SETTINGS_ID })
-		.update({
-			signature_path: signaturePath,
-			updated_at: knex.fn.now(),
-			updated_by: updatedBy || null,
-		});
+		.update(data);
 
 	return getBillingSettingsForClient();
 };
