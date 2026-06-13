@@ -20,6 +20,108 @@ const getSubjectField = (cert, shortName) => {
 	return field && field.value ? String(field.value).trim() : '';
 };
 
+const collectAllCertificateTexts = (cert) => {
+	const values = [];
+
+	if (cert.subject && Array.isArray(cert.subject.attributes)) {
+		cert.subject.attributes.forEach((attribute) => {
+			if (attribute && attribute.value != null) {
+				values.push(String(attribute.value).trim());
+			}
+		});
+	}
+
+	if (cert.issuer && Array.isArray(cert.issuer.attributes)) {
+		cert.issuer.attributes.forEach((attribute) => {
+			if (attribute && attribute.value != null) {
+				values.push(String(attribute.value).trim());
+			}
+		});
+	}
+
+	if (cert.serialNumber) {
+		values.push(String(cert.serialNumber).trim());
+	}
+
+	if (Array.isArray(cert.extensions)) {
+		cert.extensions.forEach((extension) => {
+			if (!extension) return;
+
+			if (Array.isArray(extension.altNames)) {
+				extension.altNames.forEach((altName) => {
+					if (altName && altName.value != null) {
+						values.push(String(altName.value).trim());
+					}
+				});
+			}
+
+			if (extension.value != null && typeof extension.value !== 'object') {
+				values.push(String(extension.value).trim());
+			}
+		});
+	}
+
+	return [...new Set(values.filter(Boolean))];
+};
+
+const findRucInTexts = (texts) => {
+	for (const text of texts) {
+		const explicitMatch = String(text).match(/ruc[\s:.\-_/]*(\d{13})/i);
+		if (explicitMatch) return explicitMatch[1];
+	}
+
+	for (const text of texts) {
+		const matches = String(text).match(/\d{13}/g) || [];
+		for (const candidate of matches) {
+			if (normalizeRuc(candidate).length === 13) {
+				return candidate;
+			}
+		}
+	}
+
+	for (const text of texts) {
+		const digits = normalizeRuc(text);
+		if (digits.length === 13) return digits;
+	}
+
+	return '';
+};
+
+const findCedulaInTexts = (texts) => {
+	for (const text of texts) {
+		const explicitMatch = String(text).match(/(?:ci|cedula|c\.i\.?|identificacion)[\s:.\-_/]*(\d{10})/i);
+		if (explicitMatch) return explicitMatch[1];
+	}
+
+	for (const text of texts) {
+		const matches = String(text).match(/\b\d{10}\b/g) || [];
+		if (matches.length) return matches[0];
+	}
+
+	return '';
+};
+
+const extractCertificateIdentifier = (cert) => {
+	const texts = collectAllCertificateTexts(cert);
+	const ruc = findRucInTexts(texts);
+
+	if (ruc) {
+		return { type: 'ruc', value: ruc };
+	}
+
+	const cedula = findCedulaInTexts(texts);
+	if (cedula) {
+		return { type: 'cedula', value: cedula };
+	}
+
+	return null;
+};
+
+const extractRucFromCertificate = (cert) => {
+	const identifier = extractCertificateIdentifier(cert);
+	return identifier && identifier.type === 'ruc' ? identifier.value : '';
+};
+
 const getPasswordCandidates = (password) => {
 	const raw = password == null ? '' : String(password);
 	const candidates = [];
@@ -239,21 +341,6 @@ const readCertificateFile = async (filePath, password) => {
 	throw new Error('Formato de firma no soportado. Usa .p12, .pfx o .pem');
 };
 
-const extractRucFromCertificate = (cert) => {
-	const serialNumber = getSubjectField(cert, 'serialNumber');
-	const cn = getSubjectField(cert, 'CN');
-	const organization = getSubjectField(cert, 'O');
-	const combined = [serialNumber, cn, organization].join(' ');
-	const match = combined.match(/\d{13}/);
-
-	if (match) return match[0];
-
-	const serialDigits = normalizeRuc(serialNumber);
-	if (serialDigits.length === 13) return serialDigits;
-
-	return '';
-};
-
 const namesMatch = (expectedName, cert) => {
 	const expected = normalizeText(expectedName);
 	if (!expected) return false;
@@ -320,13 +407,17 @@ const validateSignatureFile = async ({
 	const cert = await readCertificateFile(filePath, password);
 	assertCertificateValidityPeriod(cert);
 
-	const certificateRuc = extractRucFromCertificate(cert);
-	if (!certificateRuc) {
-		throw new Error('No se pudo identificar el RUC dentro del certificado');
-	}
+	const identifier = extractCertificateIdentifier(cert);
+	let certificateRuc = null;
+	let rucMatched = false;
 
-	if (certificateRuc !== expectedRuc) {
-		throw new Error(`El certificado pertenece al RUC ${certificateRuc} y no coincide con el emisor configurado (${expectedRuc})`);
+	if (identifier && identifier.type === 'ruc') {
+		certificateRuc = identifier.value;
+		rucMatched = certificateRuc === expectedRuc;
+
+		if (!rucMatched) {
+			throw new Error(`El certificado pertenece al RUC ${certificateRuc} y no coincide con el emisor configurado (${expectedRuc})`);
+		}
 	}
 
 	const legalNameMatched = namesMatch(companyLegalName, cert);
@@ -334,7 +425,11 @@ const validateSignatureFile = async ({
 
 	return {
 		valid: true,
-		certificateRuc,
+		certificateRuc: certificateRuc || expectedRuc,
+		certificateIdType: identifier ? identifier.type : 'personal',
+		certificateId: identifier ? identifier.value : null,
+		rucMatched,
+		usesPersonalCertificate: !identifier || identifier.type === 'cedula',
 		subjectCn: getSubjectField(cert, 'CN'),
 		subjectOrganization: getSubjectField(cert, 'O'),
 		companyNameMatched: legalNameMatched || tradeNameMatched,
