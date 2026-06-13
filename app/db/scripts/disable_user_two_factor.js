@@ -1,4 +1,7 @@
 require('dotenv').config();
+const twoFactorService = require('../../helpers/twoFactorService');
+const auditLogService = require('../../helpers/auditLogService');
+const { trySendTwoFactorAdminDisabledEmail } = require('../../helpers/twoFactorEmail');
 const knex = require('../knex');
 
 const USAGE = [
@@ -47,36 +50,32 @@ const disableTwoFactor = async ({ idUsers, email }) => {
 		throw new Error('No se encontró el usuario. Verifica el email o el id.');
 	}
 
-	const wasEnabled = !!user.two_factor_enabled;
-	const hadPending = !!user.two_factor_pending_secret;
-	let backupCount = 0;
+	const result = await twoFactorService.adminDisableTwoFactor(user.id_users);
 
-	try {
-		backupCount = JSON.parse(user.two_factor_backup_codes || '[]').length;
-	} catch (error) {
-		backupCount = 0;
-	}
+	await auditLogService.logAuditEvent({
+		eventType: 'security.2fa.cli_disabled',
+		targetId: user.id_users,
+		targetEmail: result.email,
+		summary: `2FA desactivado vía script CLI (${result.email})`,
+		metadata: {
+			wasEnabled: result.wasEnabled,
+			hadPending: result.hadPending,
+			backupCount: result.backupCount,
+		},
+	});
 
-	if (!wasEnabled && !hadPending) {
-		console.log(`[2fa] El usuario ${user.email} (id ${user.id_users}) no tiene 2FA activo ni configuración pendiente.`);
-		return;
-	}
-
-	await knex('users')
-		.where({ id_users: user.id_users })
-		.update({
-			two_factor_enabled: false,
-			totp_secret: null,
-			two_factor_pending_secret: null,
-			two_factor_backup_codes: null,
-			two_factor_enabled_at: null,
-			updated_at: knex.fn.now(),
-		});
+	await trySendTwoFactorAdminDisabledEmail({
+		user,
+		reason: null,
+		wasEnabled: result.wasEnabled,
+		hadPending: result.hadPending,
+		source: 'cli',
+	});
 
 	console.log('[2fa] 2FA desactivado correctamente');
-	console.log(`  Usuario: ${user.email}`);
+	console.log(`  Usuario: ${result.email}`);
 	console.log(`  ID:      ${user.id_users}`);
-	console.log(`  Antes:   enabled=${wasEnabled}, pending=${hadPending}, backupCodes=${backupCount}`);
+	console.log(`  Antes:   enabled=${result.wasEnabled}, pending=${result.hadPending}, backupCodes=${result.backupCount}`);
 	console.log('');
 	console.log('El usuario ya puede iniciar sesión solo con email y contraseña.');
 };

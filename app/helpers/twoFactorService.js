@@ -6,8 +6,16 @@ const jwt = require('jsonwebtoken');
 const knex = require('../db/knex');
 const { encryptSecret, decryptSecret } = require('./twoFactorCrypto');
 
-const APP_NAME = process.env.MAIL_BRAND_NAME || 'All In One';
+const TOTP_ISSUER = process.env.TOTP_ISSUER || process.env.MAIL_BRAND_NAME || 'All In One';
+const TOTP_LOGO_URL = process.env.TOTP_LOGO_URL
+	|| `${(process.env.PUBLIC_APP_URL || 'https://aioecuador.com').replace(/\/$/, '')}/static/images/logo/AIO_LOGO_NAME_BLACK&COLOR.png`;
 const TWO_FACTOR_PENDING_PURPOSE = '2fa_pending';
+
+const buildTotpSecret = (user) => speakeasy.generateSecret({
+	name: user.email,
+	issuer: TOTP_ISSUER,
+	length: 32,
+});
 
 const sanitizeUser = (user) => {
 	const safe = { ...user };
@@ -61,10 +69,7 @@ const setupTwoFactor = async (idUsers) => {
 	if (!user) throw new Error('Usuario no encontrado');
 	if (user.two_factor_enabled) throw new Error('La autenticación en dos pasos ya está activa');
 
-	const secret = speakeasy.generateSecret({
-		name: `${APP_NAME} (${user.email})`,
-		length: 32,
-	});
+	const secret = buildTotpSecret(user);
 
 	await knex('users')
 		.where({ id_users: idUsers })
@@ -78,6 +83,10 @@ const setupTwoFactor = async (idUsers) => {
 	return {
 		manualKey: secret.base32,
 		qrCodeDataUrl,
+		issuer: TOTP_ISSUER,
+		accountLabel: `${TOTP_ISSUER}: ${user.email}`,
+		email: user.email,
+		logoUrl: TOTP_LOGO_URL,
 	};
 };
 
@@ -127,16 +136,46 @@ const disableTwoFactor = async (idUsers, token, password) => {
 		throw new Error('Código de verificación incorrecto');
 	}
 
-	await knex('users')
-		.where({ id_users: idUsers })
-		.update({
-			two_factor_enabled: false,
-			totp_secret: null,
-			two_factor_pending_secret: null,
-			two_factor_backup_codes: null,
-			two_factor_enabled_at: null,
-			updated_at: knex.fn.now(),
-		});
+	await resetTwoFactorState(idUsers);
+};
+
+const resetTwoFactorState = async (idUsers) => knex('users')
+	.where({ id_users: idUsers })
+	.update({
+		two_factor_enabled: false,
+		totp_secret: null,
+		two_factor_pending_secret: null,
+		two_factor_backup_codes: null,
+		two_factor_enabled_at: null,
+		updated_at: knex.fn.now(),
+	});
+
+const adminDisableTwoFactor = async (targetIdUsers) => {
+	const user = await getUserSecurity(targetIdUsers);
+	if (!user) throw new Error('Usuario no encontrado');
+
+	const wasEnabled = !!user.two_factor_enabled;
+	const hadPending = !!user.two_factor_pending_secret;
+	let backupCount = 0;
+
+	try {
+		backupCount = JSON.parse(user.two_factor_backup_codes || '[]').length;
+	} catch (error) {
+		backupCount = 0;
+	}
+
+	if (!wasEnabled && !hadPending) {
+		throw new Error('El usuario no tiene 2FA activo ni configuración pendiente');
+	}
+
+	await resetTwoFactorState(targetIdUsers);
+
+	return {
+		email: user.email,
+		wasEnabled,
+		hadPending,
+		backupCount,
+	};
 };
 
 const consumeBackupCode = async (user, token) => {
@@ -209,6 +248,8 @@ module.exports = {
 	setupTwoFactor,
 	enableTwoFactor,
 	disableTwoFactor,
+	adminDisableTwoFactor,
 	getTwoFactorStatus,
 	isTwoFactorEnabled: (user) => !!(user && user.two_factor_enabled),
+	TOTP_ISSUER,
 };

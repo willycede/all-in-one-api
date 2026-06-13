@@ -6,6 +6,8 @@ const adminCollaboratorsController = require('../../controllers/adminCollaborato
 const adminInvoicesController = require('../../controllers/adminInvoicesController');
 const adminOrdersController = require('../../controllers/adminOrdersController');
 const adminBillingController = require('../../controllers/adminBillingController');
+const adminUsersController = require('../../controllers/adminUsersController');
+const adminAuditLogsController = require('../../controllers/adminAuditLogsController');
 const uploadBillingSignature = require('../../config/multerBillingSignature');
 
 router.get('/dashboard/stats', verifyToken, assertAdmin, adminDashboardController.getDashboardStats);
@@ -25,5 +27,10 @@ router.post(
 	adminBillingController.uploadSignature
 );
 router.post('/collaborators', verifyToken, assertAdmin, adminCollaboratorsController.inviteCollaborator);
+router.get('/users', verifyToken, assertAdmin, adminUsersController.listUsers);
+router.post('/users/:id_users/disable-2fa', verifyToken, assertAdmin, adminUsersController.disableUserTwoFactor);
+router.patch('/users/:id_users/status', verifyToken, assertAdmin, adminUsersController.updateUserStatus);
+router.get('/audit-logs', verifyToken, assertAdmin, adminAuditLogsController.listAuditLogs);
+router.get('/audit-logs/event-types', verifyToken, assertAdmin, adminAuditLogsController.listEventTypes);
 
 module.exports = router;
