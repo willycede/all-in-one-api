@@ -24,6 +24,7 @@ const RUN_ON_MIGRATE = new Set([
 	'20260607120000_user_security_preferences_delivery.js',
 	'20260608120000_billing_settings_and_invoice_metadata.js',
 	'20260609120000_create_audit_logs_table.js',
+	'20260613120000_add_signature_deploy_path_to_billing_settings.js',
 ]);
 
 async function ensureKnexMetaTables() {

@@ -1,35 +1,59 @@
 const fs = require('fs');
 const path = require('path');
 
-const getDeployDirectory = () => {
-	const configured = process.env.BILLING_SIGNATURE_DEPLOY_PATH;
-	return configured ? path.resolve(configured) : null;
+const DEFAULT_SIGNATURE_DEPLOY_PATH = '/opt/wildfly/standalone/data/firma';
+const DEPLOYED_SIGNATURE_FILE_NAME = 'firma-electronica.p12';
+
+const resolveSignatureDeployDirectory = (configuredPath) => {
+	const candidate = configuredPath
+		|| process.env.BILLING_SIGNATURE_DEPLOY_PATH
+		|| DEFAULT_SIGNATURE_DEPLOY_PATH;
+
+	return path.resolve(String(candidate).trim());
 };
 
-const deploySignatureForInvoicing = (localPath) => {
-	const sourcePath = path.resolve(localPath);
-	const deployDir = getDeployDirectory();
+const getDeployDirectory = (configuredPath) => resolveSignatureDeployDirectory(configuredPath);
 
-	if (!deployDir) {
-		return {
-			deployedPath: sourcePath,
-			deployed: false,
-			warning: 'BILLING_SIGNATURE_DEPLOY_PATH no está configurada. Se guardará la ruta local del API; WildFly debe poder leer ese archivo.',
-		};
+const deploySignatureForInvoicing = (localPath, configuredDeployPath) => {
+	const sourcePath = path.resolve(localPath);
+
+	if (!fs.existsSync(sourcePath)) {
+		throw new Error(`No se encontró el archivo de firma temporal: ${sourcePath}`);
 	}
 
-	fs.mkdirSync(deployDir, { recursive: true });
-	const deployedPath = path.join(deployDir, 'firma-electronica.p12');
-	fs.copyFileSync(sourcePath, deployedPath);
+	const deployDir = resolveSignatureDeployDirectory(configuredDeployPath);
+
+	try {
+		fs.mkdirSync(deployDir, { recursive: true });
+	} catch (error) {
+		throw new Error(`No se pudo crear la carpeta de despliegue ${deployDir}: ${error.message}`);
+	}
+
+	const deployedPath = path.join(deployDir, DEPLOYED_SIGNATURE_FILE_NAME);
+
+	try {
+		fs.copyFileSync(sourcePath, deployedPath);
+		fs.chmodSync(deployedPath, 0o640);
+	} catch (error) {
+		throw new Error(`No se pudo copiar la firma a ${deployedPath}: ${error.message}`);
+	}
+
+	if (!fs.existsSync(deployedPath)) {
+		throw new Error(`La firma no quedó disponible en ${deployedPath}`);
+	}
 
 	return {
 		deployedPath,
 		deployed: true,
-		deployedTo: deployedPath,
+		deployDirectory: deployDir,
+		deployedFileName: DEPLOYED_SIGNATURE_FILE_NAME,
 	};
 };
 
 module.exports = {
+	DEFAULT_SIGNATURE_DEPLOY_PATH,
+	DEPLOYED_SIGNATURE_FILE_NAME,
+	resolveSignatureDeployDirectory,
 	getDeployDirectory,
 	deploySignatureForInvoicing,
 };

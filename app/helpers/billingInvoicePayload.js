@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { inspectSignatureFile } = require('./billingSignatureValidator');
+const { resolveSignatureDeployDirectory } = require('./billingSignatureDeploy');
 
 const maskSecret = (value) => {
 	if (!value) return false;
@@ -25,7 +26,7 @@ const buildInvoiceServiceParams = (config, orderId) => ({
 
 const buildInvoicePayloadSummary = async (config, orderId) => {
 	const signaturePath = config.signature_path ? path.resolve(config.signature_path) : null;
-	const deployPath = process.env.BILLING_SIGNATURE_DEPLOY_PATH || null;
+	const deployPath = resolveSignatureDeployDirectory(config.signature_deploy_path);
 	const warnings = [];
 
 	if (!signaturePath) {
@@ -36,8 +37,7 @@ const buildInvoicePayloadSummary = async (config, orderId) => {
 
 	if (deployPath && signaturePath && !signaturePath.startsWith(path.resolve(deployPath))) {
 		warnings.push(
-			`La firma no está en BILLING_SIGNATURE_DEPLOY_PATH (${deployPath}). `
-			+ 'WildFly podría no poder leerla y usar un certificado anterior.',
+			`La firma activa no está en la ruta de despliegue (${deployPath}). Vuelve a subir el certificado.`,
 		);
 	}
 

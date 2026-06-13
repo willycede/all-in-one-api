@@ -26,12 +26,21 @@ const ensureBillingSettingsTable = async (db) => {
 			t.string('service_url', 500).nullable();
 			t.string('output_path', 500).nullable();
 			t.string('jasper_path', 500).nullable();
+			t.string('signature_deploy_path', 500).nullable();
 			t.string('signature_path', 500).nullable();
 			t.string('signature_password', 255).nullable();
 			t.timestamp('updated_at').defaultTo(db.fn.now());
 			t.integer('updated_by').unsigned().nullable();
 		});
 		console.log('[billing] Tabla billing_settings creada');
+	}
+
+	const hasDeployPathColumn = await db.schema.hasColumn('billing_settings', 'signature_deploy_path');
+	if (!hasDeployPathColumn) {
+		await db.schema.table('billing_settings', (t) => {
+			t.string('signature_deploy_path', 500).nullable();
+		});
+		console.log('[billing] Columna billing_settings.signature_deploy_path agregada');
 	}
 
 	const row = await db('billing_settings').where({ id_billing_settings: 1 }).first();

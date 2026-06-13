@@ -16,6 +16,7 @@ const DEFAULTS = {
 	service_url: null,
 	output_path: null,
 	jasper_path: null,
+	signature_deploy_path: null,
 	signature_path: null,
 	signature_password: null,
 };
@@ -38,6 +39,9 @@ const sanitizeForClient = (row) => {
 		service_url: row.service_url || process.env.URLAPIFELECTRONICA || '',
 		output_path: row.output_path || process.env.PATHCOMPROBANTE || '',
 		jasper_path: row.jasper_path || process.env.PATHJASPER || '',
+		signature_deploy_path: row.signature_deploy_path
+			|| process.env.BILLING_SIGNATURE_DEPLOY_PATH
+			|| '/opt/wildfly/standalone/data/firma',
 		has_signature: !!row.signature_path,
 		signature_file_name: row.signature_path ? row.signature_path.split(/[/\\]/).pop() : null,
 		company_profile_complete: isCompanyProfileComplete(row),
@@ -80,6 +84,9 @@ const getEffectiveBillingConfig = async () => {
 		service_url: row.service_url || process.env.URLAPIFELECTRONICA,
 		output_path: row.output_path || process.env.PATHCOMPROBANTE,
 		jasper_path: row.jasper_path || process.env.PATHJASPER,
+		signature_deploy_path: row.signature_deploy_path
+			|| process.env.BILLING_SIGNATURE_DEPLOY_PATH
+			|| '/opt/wildfly/standalone/data/firma',
 		signature_path: row.signature_path,
 		signature_password: row.signature_password,
 		ambiente: (row.environment === 'production') ? 2 : 1,
@@ -103,6 +110,10 @@ const updateBillingSettings = async (payload, updatedBy) => {
 		updated_at: knex.fn.now(),
 		updated_by: updatedBy || null,
 	};
+
+	if (payload.signature_deploy_path !== undefined && payload.signature_deploy_path !== '') {
+		data.signature_deploy_path = payload.signature_deploy_path;
+	}
 
 	if (payload.signature_password !== undefined && payload.signature_password !== '') {
 		data.signature_password = payload.signature_password;

@@ -37,9 +37,9 @@ const collectBillingReadinessIssues = async (configOverride) => {
 		issues.push('Falta la contraseña de la firma electrónica');
 	}
 
-	const deployDir = getDeployDirectory();
-	if (deployDir && config.signature_path && !String(config.signature_path).startsWith(deployDir)) {
-		issues.push(`La firma no está en la ruta compartida para WildFly (${deployDir})`);
+	const deployDir = getDeployDirectory(config.signature_deploy_path);
+	if (config.signature_path && !String(config.signature_path).startsWith(deployDir)) {
+		issues.push(`La firma activa (${config.signature_path}) no está en la ruta de despliegue (${deployDir}). Vuelve a subir el certificado.`);
 	}
 
 	if (config.signature_path && fs.existsSync(config.signature_path) && config.signature_password) {

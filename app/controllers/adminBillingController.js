@@ -81,6 +81,12 @@ const uploadSignature = async (req, res) => {
 
 		filePath = path.resolve(req.file.path);
 		const settings = await getStoredCompanySettings();
+		const deployPath = String(req.body.signature_deploy_path || settings.signature_deploy_path || '').trim();
+		const updatedBy = req.userInfo && req.userInfo.id_users;
+
+		if (deployPath && deployPath !== settings.signature_deploy_path) {
+			await billingSettingsModel.updateBillingSettings({ signature_deploy_path: deployPath }, updatedBy);
+		}
 
 		const validation = await billingSignatureValidator.validateSignatureFile({
 			filePath,
@@ -90,8 +96,7 @@ const uploadSignature = async (req, res) => {
 			companyTradeName: settings.company_trade_name,
 		});
 
-		const deployment = deploySignatureForInvoicing(filePath);
-		const updatedBy = req.userInfo && req.userInfo.id_users;
+		const deployment = deploySignatureForInvoicing(filePath, deployPath || settings.signature_deploy_path);
 		const updatedSettings = await billingSettingsModel.updateSignaturePath(
 			deployment.deployedPath,
 			password,
