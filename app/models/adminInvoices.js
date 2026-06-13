@@ -22,6 +22,11 @@ const buildInvoicesQuery = (filters) => {
 		query = query.where('sc.status_invoice', 0);
 	} else if (filters.status === 'invoiced') {
 		query = query.where('sc.status_invoice', 1);
+	} else if (filters.status === 'error') {
+		query = query
+			.where('sc.status_invoice', 0)
+			.whereNotNull('sc.invoice_error')
+			.where('sc.invoice_error', '!=', '');
 	}
 
 	if (filters.search && String(filters.search).trim()) {
@@ -69,6 +74,7 @@ const getAdminInvoicesPaginated = async ({ page, limit, search, status }) => {
 			'sc.status_invoice',
 			'sc.invoice_number',
 			'sc.invoice_access_key',
+			'sc.invoice_error',
 			'sc.invoice_pdf_path',
 			'sc.invoice_xml_path',
 			'sc.invoiced_at',
@@ -93,6 +99,8 @@ const getAdminInvoicesPaginated = async ({ page, limit, search, status }) => {
 			shopping_car_iva: row.shopping_car_iva,
 			status: row.status,
 			status_invoice: row.status_invoice,
+			invoice_number: row.invoice_number,
+			invoice_error: row.invoice_error,
 			created_at: row.created_at,
 			updated_at: row.updated_at,
 			name_user: row.name_user,
@@ -122,7 +130,14 @@ const reprocessAdminInvoice = async (idShoppingCar) => {
 	if (!id) {
 		throw new Error('ID de orden inválido');
 	}
-	return reprocessInvoiceForOrder(id);
+
+	const result = await reprocessInvoiceForOrder(id);
+
+	if (!result.success) {
+		throw new Error(result.message || result.invoice_error || 'No se pudo reprocesar la factura');
+	}
+
+	return result;
 };
 
 module.exports = {

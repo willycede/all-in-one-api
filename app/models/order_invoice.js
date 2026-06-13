@@ -5,6 +5,7 @@ const axios = require('axios');
 const knex = require('../db/knex');
 const { getOrderHistoryPaginated } = require('./order_history');
 const { getEffectiveBillingConfig } = require('./billingSettings');
+const { assertBillingReadyForInvoicing } = require('../helpers/billingReadiness');
 const emailSender = require('../helpers/emailSender');
 const orderEmailDebug = require('../helpers/orderEmailDebug');
 const { getUserLocale } = require('../email/locale');
@@ -23,30 +24,42 @@ const buildInvoiceNumber = (config, orderId) => {
 };
 
 const generateElectronicInvoice = async (id_shopping_car, configOverride) => {
-	const config = configOverride || await getEffectiveBillingConfig();
+	const config = configOverride || await assertBillingReadyForInvoicing();
 
 	if (!config.service_url) {
 		throw new Error('No está configurada la URL del servicio de facturación electrónica');
 	}
 
-	const shopCartFelec = await axios({
-		method: 'post',
-		url: config.service_url,
-		headers: { 'Content-Type': 'application/json' },
-		params: {
-			codigo: id_shopping_car,
-			path: config.output_path,
-			namefile: 'factura',
-			jasper_file: config.jasper_path,
-			ambiente: config.ambiente,
-			ruc: config.company_ruc,
-			razonSocial: config.company_legal_name,
-			nombreComercial: config.company_trade_name,
-			dirMatriz: config.company_address,
-			firma: config.signature_path,
-			claveFirma: config.signature_password,
-		},
-	});
+	let shopCartFelec;
+
+	try {
+		shopCartFelec = await axios({
+			method: 'post',
+			url: config.service_url,
+			headers: { 'Content-Type': 'application/json' },
+			params: {
+				codigo: id_shopping_car,
+				path: config.output_path,
+				namefile: 'factura',
+				jasper_file: config.jasper_path,
+				ambiente: config.ambiente,
+				ruc: config.company_ruc,
+				razonSocial: config.company_legal_name,
+				nombreComercial: config.company_trade_name,
+				dirMatriz: config.company_address,
+				firma: config.signature_path,
+				claveFirma: config.signature_password,
+			},
+			timeout: 120000,
+		});
+	} catch (error) {
+		const remoteMessage = error.response && error.response.data
+			? (error.response.data.message || error.response.data.error || JSON.stringify(error.response.data))
+			: null;
+		throw new Error(remoteMessage
+			? `Error del servicio de facturación: ${remoteMessage}`
+			: `Error del servicio de facturación: ${error.message}`);
+	}
 
 	if (!shopCartFelec.data || !shopCartFelec.data.claveAcceso) {
 		throw new Error('El servicio de facturación no devolvió una clave de acceso válida');
@@ -158,6 +171,7 @@ const processInvoiceAfterPayment = async (id_shopping_car) => {
 	}
 
 	try {
+		const config = await assertBillingReadyForInvoicing();
 		const invoiceResult = await generateElectronicInvoice(id_shopping_car, config);
 		const invoiceNumber = buildInvoiceNumber(config, id_shopping_car);
 
@@ -223,7 +237,7 @@ const processInvoiceAfterPayment = async (id_shopping_car) => {
 	}
 };
 
-const reprocessInvoiceForOrder = async (id_shopping_car) => {
+const reprocessInvoiceForOrder = async (id_shopping_car, { force = false } = {}) => {
 	const order = await knex('shopping_car')
 		.where({ id_shopping_car })
 		.first();
@@ -236,11 +250,42 @@ const reprocessInvoiceForOrder = async (id_shopping_car) => {
 		throw new Error('La orden debe estar pagada para reprocesar la factura');
 	}
 
-	await processInvoiceAfterPayment(id_shopping_car);
+	if (!force && parseInt(order.status_invoice, 10) === 1 && order.invoice_access_key) {
+		return {
+			success: true,
+			alreadyInvoiced: true,
+			id_shopping_car,
+			invoice_number: order.invoice_number,
+			invoice_access_key: order.invoice_access_key,
+			status_invoice: order.status_invoice,
+			message: 'La orden ya tiene una factura electrónica generada',
+		};
+	}
 
-	return knex('shopping_car')
+	await knex('shopping_car')
+		.where({ id_shopping_car })
+		.update({
+			invoice_error: null,
+			updated_at: knex.fn.now(),
+		});
+
+	const result = await processInvoiceAfterPayment(id_shopping_car);
+	const updated = await knex('shopping_car')
 		.where({ id_shopping_car })
 		.first();
+
+	return {
+		success: !!(result && result.success),
+		id_shopping_car,
+		invoice_number: updated.invoice_number,
+		invoice_access_key: updated.invoice_access_key,
+		status_invoice: updated.status_invoice,
+		invoice_error: updated.invoice_error,
+		message: result && result.alreadyInvoiced
+			? 'La orden ya tenía factura electrónica'
+			: 'Factura electrónica generada correctamente',
+		...result,
+	};
 };
 
 const reprocessOrderInvoice = async (id_shopping_car, id_user, page, limit) => {
