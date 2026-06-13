@@ -18,6 +18,7 @@ router.get('/invoices', verifyToken, assertAdmin, adminInvoicesController.listIn
 router.post('/invoices/:id_shopping_car/reprocess', verifyToken, assertAdmin, adminInvoicesController.reprocessInvoice);
 router.get('/invoices/:id_shopping_car/download/:type', verifyToken, assertAdmin, adminInvoicesController.downloadInvoiceFile);
 router.get('/billing/settings', verifyToken, assertAdmin, adminBillingController.getSettings);
+router.get('/billing/invoice-diagnostics', verifyToken, assertAdmin, adminBillingController.getInvoiceDiagnostics);
 router.put('/billing/settings', verifyToken, assertAdmin, adminBillingController.updateSettings);
 router.post(
 	'/billing/signature/validate',

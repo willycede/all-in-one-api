@@ -1,0 +1,95 @@
+const fs = require('fs');
+const path = require('path');
+const { inspectSignatureFile } = require('./billingSignatureValidator');
+
+const maskSecret = (value) => {
+	if (!value) return false;
+	const text = String(value);
+	if (text.length <= 2) return '**';
+	return `${'*'.repeat(Math.min(text.length, 8))} (${text.length} caracteres)`;
+};
+
+const buildInvoiceServiceParams = (config, orderId) => ({
+	codigo: orderId,
+	path: config.output_path,
+	namefile: 'factura',
+	jasper_file: config.jasper_path,
+	ambiente: config.ambiente,
+	ruc: config.company_ruc,
+	razonSocial: config.company_legal_name,
+	nombreComercial: config.company_trade_name,
+	dirMatriz: config.company_address,
+	firma: config.signature_path,
+	claveFirma: config.signature_password,
+});
+
+const buildInvoicePayloadSummary = async (config, orderId) => {
+	const signaturePath = config.signature_path ? path.resolve(config.signature_path) : null;
+	const deployPath = process.env.BILLING_SIGNATURE_DEPLOY_PATH || null;
+	const warnings = [];
+
+	if (!signaturePath) {
+		warnings.push('No hay ruta de firma configurada. El servicio Java puede usar un certificado por defecto.');
+	} else if (!fs.existsSync(signaturePath)) {
+		warnings.push(`El archivo de firma no existe en el servidor API: ${signaturePath}`);
+	}
+
+	if (deployPath && signaturePath && !signaturePath.startsWith(path.resolve(deployPath))) {
+		warnings.push(
+			`La firma no está en BILLING_SIGNATURE_DEPLOY_PATH (${deployPath}). `
+			+ 'WildFly podría no poder leerla y usar un certificado anterior.',
+		);
+	}
+
+	let signatureInspection = null;
+	if (signaturePath && fs.existsSync(signaturePath) && config.signature_password) {
+		try {
+			signatureInspection = await inspectSignatureFile({
+				filePath: signaturePath,
+				password: config.signature_password,
+			});
+			if (signatureInspection.isExpired) {
+				warnings.push(
+					`El certificado en ${signaturePath} está vencido desde ${signatureInspection.validTo}.`,
+				);
+			}
+		} catch (error) {
+			warnings.push(`No se pudo inspeccionar la firma configurada: ${error.message}`);
+		}
+	}
+
+	return {
+		orderId,
+		serviceUrl: config.service_url,
+		params: {
+			codigo: orderId,
+			path: config.output_path,
+			namefile: 'factura',
+			jasper_file: config.jasper_path,
+			ambiente: config.ambiente,
+			ruc: config.company_ruc,
+			razonSocial: config.company_legal_name,
+			nombreComercial: config.company_trade_name,
+			dirMatriz: config.company_address,
+			firma: signaturePath,
+			firma_exists: !!(signaturePath && fs.existsSync(signaturePath)),
+			claveFirma_configured: !!config.signature_password,
+			claveFirma_preview: maskSecret(config.signature_password),
+		},
+		wildflyDeployPath: deployPath,
+		signatureInspection,
+		warnings,
+	};
+};
+
+const logInvoicePayloadSummary = async (config, orderId) => {
+	const summary = await buildInvoicePayloadSummary(config, orderId);
+	console.log('[invoice-service] Payload hacia servicio de facturación:', JSON.stringify(summary));
+	return summary;
+};
+
+module.exports = {
+	buildInvoiceServiceParams,
+	buildInvoicePayloadSummary,
+	logInvoicePayloadSummary,
+};

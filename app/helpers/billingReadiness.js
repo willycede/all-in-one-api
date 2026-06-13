@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { getEffectiveBillingConfig } = require('../models/billingSettings');
-const { isCompanyProfileComplete } = require('./billingSignatureValidator');
+const { isCompanyProfileComplete, inspectSignatureFile } = require('./billingSignatureValidator');
+const { getDeployDirectory } = require('./billingSignatureDeploy');
 
 const collectBillingReadinessIssues = async (configOverride) => {
 	const config = configOverride || await getEffectiveBillingConfig();
@@ -34,6 +35,25 @@ const collectBillingReadinessIssues = async (configOverride) => {
 
 	if (!config.signature_password) {
 		issues.push('Falta la contraseña de la firma electrónica');
+	}
+
+	const deployDir = getDeployDirectory();
+	if (deployDir && config.signature_path && !String(config.signature_path).startsWith(deployDir)) {
+		issues.push(`La firma no está en la ruta compartida para WildFly (${deployDir})`);
+	}
+
+	if (config.signature_path && fs.existsSync(config.signature_path) && config.signature_password) {
+		try {
+			const inspection = await inspectSignatureFile({
+				filePath: config.signature_path,
+				password: config.signature_password,
+			});
+			if (inspection.isExpired) {
+				issues.push(`El certificado configurado está vencido (${inspection.validTo})`);
+			}
+		} catch (error) {
+			issues.push(`No se pudo validar el certificado configurado: ${error.message}`);
+		}
 	}
 
 	return {

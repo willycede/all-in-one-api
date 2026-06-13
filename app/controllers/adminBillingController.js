@@ -1,6 +1,9 @@
 const fs = require('fs').promises;
 const billingSettingsModel = require('../models/billingSettings');
 const billingSignatureValidator = require('../helpers/billingSignatureValidator');
+const { deploySignatureForInvoicing } = require('../helpers/billingSignatureDeploy');
+const { buildInvoicePayloadSummary } = require('../helpers/billingInvoicePayload');
+const { getEffectiveBillingConfig } = require('../models/billingSettings');
 const response = require('../config/response');
 const path = require('path');
 
@@ -87,12 +90,22 @@ const uploadSignature = async (req, res) => {
 			companyTradeName: settings.company_trade_name,
 		});
 
+		const deployment = deploySignatureForInvoicing(filePath);
 		const updatedBy = req.userInfo && req.userInfo.id_users;
-		const updatedSettings = await billingSettingsModel.updateSignaturePath(filePath, password, updatedBy);
+		const updatedSettings = await billingSettingsModel.updateSignaturePath(
+			deployment.deployedPath,
+			password,
+			updatedBy,
+		);
+
+		if (deployment.deployed && deployment.deployedPath !== filePath) {
+			await fs.unlink(filePath).catch(() => {});
+		}
 
 		return response.success(req, res, {
 			...updatedSettings,
 			signature_validation: validation,
+			signature_deployment: deployment,
 		}, 200);
 	} catch (error) {
 		if (filePath) {
@@ -102,9 +115,20 @@ const uploadSignature = async (req, res) => {
 	}
 };
 
+const getInvoiceDiagnostics = async (req, res) => {
+	try {
+		const config = await getEffectiveBillingConfig();
+		const summary = await buildInvoicePayloadSummary(config, 'EJEMPLO_ORDEN');
+		return response.success(req, res, summary, 200);
+	} catch (error) {
+		return response.error(req, res, { message: error.message }, 422);
+	}
+};
+
 module.exports = {
 	getSettings,
 	updateSettings,
 	validateSignatureUpload,
 	uploadSignature,
+	getInvoiceDiagnostics,
 };

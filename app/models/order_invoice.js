@@ -6,6 +6,10 @@ const knex = require('../db/knex');
 const { getOrderHistoryPaginated } = require('./order_history');
 const { getEffectiveBillingConfig } = require('./billingSettings');
 const { assertBillingReadyForInvoicing } = require('../helpers/billingReadiness');
+const {
+	buildInvoiceServiceParams,
+	logInvoicePayloadSummary,
+} = require('../helpers/billingInvoicePayload');
 const emailSender = require('../helpers/emailSender');
 const orderEmailDebug = require('../helpers/orderEmailDebug');
 const { getUserLocale } = require('../email/locale');
@@ -32,29 +36,20 @@ const generateElectronicInvoice = async (id_shopping_car, configOverride) => {
 
 	let shopCartFelec;
 
+	await logInvoicePayloadSummary(config, id_shopping_car);
+
 	try {
 		shopCartFelec = await axios({
 			method: 'post',
 			url: config.service_url,
 			headers: { 'Content-Type': 'application/json' },
-			params: {
-				codigo: id_shopping_car,
-				path: config.output_path,
-				namefile: 'factura',
-				jasper_file: config.jasper_path,
-				ambiente: config.ambiente,
-				ruc: config.company_ruc,
-				razonSocial: config.company_legal_name,
-				nombreComercial: config.company_trade_name,
-				dirMatriz: config.company_address,
-				firma: config.signature_path,
-				claveFirma: config.signature_password,
-			},
+			params: buildInvoiceServiceParams(config, id_shopping_car),
 			timeout: 120000,
 		});
 	} catch (error) {
-		const remoteMessage = error.response && error.response.data
-			? (error.response.data.message || error.response.data.error || JSON.stringify(error.response.data))
+		const remoteData = error.response && error.response.data;
+		const remoteMessage = remoteData
+			? (remoteData.message || remoteData.error || remoteData.details || JSON.stringify(remoteData))
 			: null;
 		throw new Error(remoteMessage
 			? `Error del servicio de facturación: ${remoteMessage}`

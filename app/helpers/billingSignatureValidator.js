@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const { spawn } = require('child_process');
 const forge = require('node-forge');
 
@@ -365,8 +366,37 @@ const assertCertificateValidityPeriod = (cert) => {
 	}
 
 	if (now > notAfter) {
-		throw new Error('El certificado está vencido');
+		throw new Error(`El certificado está vencido desde ${notAfter.toISOString()}`);
 	}
+};
+
+const inspectSignatureFile = async ({ filePath, password }) => {
+	if (!filePath) {
+		throw new Error('Archivo de firma requerido');
+	}
+
+	const resolvedPath = path.resolve(filePath);
+	if (!fs.existsSync(resolvedPath)) {
+		throw new Error(`El archivo de firma no existe: ${resolvedPath}`);
+	}
+
+	const cert = await readCertificateFile(resolvedPath, password);
+	const identifier = extractCertificateIdentifier(cert);
+	const now = new Date();
+
+	return {
+		filePath: resolvedPath,
+		fileName: path.basename(resolvedPath),
+		fileExists: true,
+		subjectCn: getSubjectField(cert, 'CN'),
+		subjectOrganization: getSubjectField(cert, 'O'),
+		certificateIdType: identifier ? identifier.type : 'personal',
+		certificateId: identifier ? identifier.value : null,
+		validFrom: cert.validity.notBefore,
+		validTo: cert.validity.notAfter,
+		isExpired: now > cert.validity.notAfter,
+		isNotYetValid: now < cert.validity.notBefore,
+	};
 };
 
 const isCompanyProfileComplete = (settings) => {
@@ -442,5 +472,6 @@ module.exports = {
 	isCompanyProfileComplete,
 	assertCompanyProfileComplete,
 	validateSignatureFile,
+	inspectSignatureFile,
 	normalizeRuc,
 };
