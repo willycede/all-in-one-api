@@ -2,8 +2,13 @@
  * Marca migraciones históricas como aplicadas en knex_migrations.
  * Usar en BD que ya existía antes de Knex (evita "Table already exists" en migrate:latest).
  *
- * Uso: npm run migrate:baseline
- * Luego: npm run migrate   (solo aplicará migraciones nuevas pendientes)
+ * Uso en servidor con BD ya poblada:
+ *   npm run migrate:baseline
+ *   npm run migrate:prod
+ *
+ * O solo la tabla de auditoría:
+ *   npm run migrate:baseline
+ *   npm run migrate:audit-logs
  */
 require('dotenv').config();
 const fs = require('fs');
@@ -11,9 +16,14 @@ const path = require('path');
 const db = require('../knex');
 
 const MIGRATIONS_DIR = path.join(__dirname, '../migrations');
-const SKIP = new Set([
+
+// No marcar como aplicadas: migrate:latest las ejecutará (son idempotentes o nuevas).
+const RUN_ON_MIGRATE = new Set([
 	'20260606120000_create_user_favorites_table.js',
+	'20260606140000_create_coupons_table.js',
+	'20260607120000_user_security_preferences_delivery.js',
 	'20260608120000_billing_settings_and_invoice_metadata.js',
+	'20260609120000_create_audit_logs_table.js',
 ]);
 
 async function ensureKnexMetaTables() {
@@ -45,32 +55,39 @@ async function baseline() {
 		.sort();
 
 	const applied = new Set(await db('knex_migrations').pluck('name'));
-	const pending = files.filter((file) => !applied.has(file) && !SKIP.has(file));
+	const toBaseline = files.filter((file) => !applied.has(file) && !RUN_ON_MIGRATE.has(file));
 
-	if (pending.length === 0) {
-		console.log('Baseline: no hay migraciones históricas pendientes de marcar.');
-		return;
+	if (toBaseline.length === 0) {
+		console.log('[baseline] No hay migraciones históricas pendientes de marcar.');
+	} else {
+		const batchRow = await db('knex_migrations').max('batch as maxBatch').first();
+		const batch = ((batchRow && batchRow.maxBatch) || 0) + 1;
+		const now = new Date();
+
+		await db('knex_migrations').insert(
+			toBaseline.map((name) => ({
+				name,
+				batch,
+				migration_time: now,
+			}))
+		);
+
+		console.log(`[baseline] ${toBaseline.length} migraciones marcadas como aplicadas (batch ${batch}).`);
 	}
 
-	const batchRow = await db('knex_migrations').max('batch as maxBatch').first();
-	const batch = ((batchRow && batchRow.maxBatch) || 0) + 1;
-	const now = new Date();
-
-	await db('knex_migrations').insert(
-		pending.map((name) => ({
-			name,
-			batch,
-			migration_time: now,
-		}))
-	);
-
-	console.log(`Baseline: ${pending.length} migraciones marcadas como aplicadas (batch ${batch}).`);
-	console.log('Pendientes reales para migrate:latest:', [...SKIP].filter((f) => !applied.has(f)).join(', ') || '(ninguna)');
+	const pendingMigrate = files.filter((file) => !applied.has(file) && RUN_ON_MIGRATE.has(file));
+	if (pendingMigrate.length) {
+		console.log('[baseline] Pendientes para migrate:latest:');
+		pendingMigrate.forEach((name) => console.log(`  - ${name}`));
+		console.log('Ejecuta: npm run migrate  o  npm run migrate:prod');
+	} else {
+		console.log('[baseline] No quedan migraciones pendientes en RUN_ON_MIGRATE.');
+	}
 }
 
 baseline()
 	.then(() => process.exit(0))
 	.catch((error) => {
-		console.error('Baseline ERROR:', error.message);
+		console.error('[baseline] ERROR:', error.message);
 		process.exit(1);
 	});

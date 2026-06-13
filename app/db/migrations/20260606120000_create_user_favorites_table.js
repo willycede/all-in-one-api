@@ -1,6 +1,9 @@
 
-exports.up = function (knex) {
-	return knex.schema.createTable('user_favorites', (t) => {
+exports.up = async function up(knex) {
+	const exists = await knex.schema.hasTable('user_favorites');
+	if (exists) return;
+
+	await knex.schema.createTable('user_favorites', (t) => {
 		t.increments('id_favorite').primary();
 		t.integer('id_user').notNull().comment('FK to users.id_users');
 		t.integer('id_product').notNull().comment('FK to products.id_products');
@@ -15,6 +18,6 @@ exports.up = function (knex) {
 	});
 };
 
-exports.down = function (knex) {
-	return knex.schema.dropTable('user_favorites');
+exports.down = function down(knex) {
+	return knex.schema.dropTableIfExists('user_favorites');
 };

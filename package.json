@@ -12,6 +12,8 @@
     "migrate:coupons": "node app/db/scripts/ensure_coupons.js",
     "migrate:user-security": "node app/db/scripts/ensure_user_security.js",
     "migrate:billing": "node app/db/scripts/ensure_billing_settings.js",
+    "migrate:audit-logs": "node app/db/scripts/ensure_audit_logs.js",
+    "migrate:prod": "node app/db/scripts/baseline_migrations.js && knex migrate:latest",
     "promote:admin": "node app/db/scripts/promote_admin_user.js",
     "disable:2fa": "node app/db/scripts/disable_user_two_factor.js",
     "migrate:baseline": "node app/db/scripts/baseline_migrations.js"
