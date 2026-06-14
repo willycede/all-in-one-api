@@ -28,18 +28,32 @@ Luego desplegar el frontend (`npm run build`) con `VUE_APP_API` apuntando a la A
 
 ## Migraciones (BD legacy)
 
-Si la BD existía antes de Knex:
+Si la BD existía antes de Knex **no uses** `npx knex migrate:latest` directo: fallará con `Table 'users' already exists`.
 
 ```bash
-npm run migrate:baseline
-npm run migrate:favorites
+npm run migrate:prod
+```
+
+Equivale a:
+
+```bash
+npm run migrate:baseline   # marca migraciones antiguas como ya aplicadas
+npm run migrate            # ejecuta solo las nuevas (idempotentes)
+```
+
+Para facturación (tablas `billing_settings` + `invoice_data`):
+
+```bash
+npm run migrate:billing
 ```
 
 Scripts disponibles:
 | Script | Descripción |
 |--------|-------------|
+| `npm run migrate:prod` | Baseline + migrate:latest (recomendado en servidor) |
 | `npm run migrate` | Knex migrate:latest |
 | `npm run migrate:baseline` | Marca migraciones históricas como aplicadas |
+| `npm run migrate:billing` | Crea/verifica billing_settings e invoice_data |
 | `npm run migrate:favorites` | Crea tabla user_favorites |
 | `npm run migrate:coupons` | Crea tabla coupons + columnas en shopping_car + cupones demo |
 | `npm run promote:admin` | Promueve un usuario a administrador (`-- email@...`) |
