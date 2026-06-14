@@ -13,6 +13,7 @@ router.get('/get_shop/:id_user', verifyToken, assertSelfUser, shopController.get
 router.get('/get_shop_by_id/:id_orden', verifyToken, shopController.getShoppCarById);
 router.get('/get_shopDetails/:id_shopping_car', verifyToken, shopController.getShoppCarDetails);
 router.get('/get_invoice_data/:id_user', verifyToken, assertSelfUser, shopController.getInvoiceData);
+router.get('/customer-billing-status/:id_user', verifyToken, assertSelfUser, shopController.getCustomerBillingStatusCtr);
 router.post('/pay_shop', verifyToken, shopController.putUpdateShoppingPay);
 router.post('/payphone', verifyToken, payphoneRateLimit, shopController.ShppoingCarUrlPay);
 router.post('/payphone/regenerate', verifyToken, payphoneRateLimit, shopController.regeneratePayphoneLink);

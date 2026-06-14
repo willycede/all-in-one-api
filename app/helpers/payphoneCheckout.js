@@ -3,6 +3,7 @@ const knex = require('../db/knex');
 const cartValidation = require('./cartValidation');
 const couponsModel = require('../models/coupons');
 const shoppingModel = require('../models/shopping');
+const { assertCustomerBillingReady } = require('./customerBillingData');
 const ORDER_STATUS = require('../constants/orderStatus');
 const {
 	normalizePayphoneAmounts,
@@ -376,6 +377,11 @@ const preparePaymentLink = async ({
 }) => {
 	const cart = await getOrderForPayment(orderId, userId);
 	assertPayableOrderStatus(cart, { allowActiveCart });
+
+	if (userId) {
+		await assertCustomerBillingReady(userId);
+	}
+
 	await validateOrderForPayment(orderId, { sentSubtotalCents });
 
 	const resolvedAmounts = normalizePayphoneAmounts(amounts || buildPayphoneAmountsFromCart(cart));

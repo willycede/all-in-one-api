@@ -56,6 +56,27 @@ const ensureBillingSettingsTable = async (db) => {
 	}
 };
 
+const ensureInvoiceDataTable = async (db) => {
+	const hasTable = await db.schema.hasTable('invoice_data');
+	if (!hasTable) {
+		await db.schema.createTable('invoice_data', (t) => {
+			t.increments('id_invoice_data').primary();
+			t.integer('id_user').unsigned().notNullable();
+			t.string('type_id', 1).notNullable();
+			t.string('id_document', 20).notNullable();
+			t.string('razon_social', 255).notNullable();
+			t.string('razon_comercial', 255).nullable();
+			t.string('address', 500).notNullable();
+			t.string('mail', 255).notNullable();
+			t.boolean('principal').notNullable().defaultTo(true);
+			t.timestamp('created_at').defaultTo(db.fn.now());
+			t.timestamp('updated_at').defaultTo(db.fn.now());
+			t.index(['id_user', 'principal'], 'invoice_data_user_principal_idx');
+		});
+		console.log('[billing] Tabla invoice_data creada');
+	}
+};
+
 const ensureShoppingCarInvoiceColumns = async (db) => {
 	const hasShoppingCar = await db.schema.hasTable('shopping_car');
 	if (!hasShoppingCar) {
@@ -81,6 +102,7 @@ const ensureShoppingCarInvoiceColumns = async (db) => {
 
 const ensureBillingSchema = async (db = knex) => {
 	await ensureBillingSettingsTable(db);
+	await ensureInvoiceDataTable(db);
 	await ensureShoppingCarInvoiceColumns(db);
 };
 

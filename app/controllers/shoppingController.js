@@ -5,6 +5,10 @@ const couponsModel = require('../models/coupons');
 const { processInvoiceAfterPayment } = require('../models/order_invoice');
 const response = require('../config/response');
 const payphoneCheckout = require('../helpers/payphoneCheckout');
+const {
+    getCustomerBillingData,
+    getCustomerBillingStatus,
+} = require('../helpers/customerBillingData');
 const orderEmailDebug = require('../helpers/orderEmailDebug');
 const emailSender = require('../helpers/emailSender');
 
@@ -282,16 +286,29 @@ const getShoppCarDetails = async (req, res) => {
 
 const getInvoiceData = async (req, res) => {
     try {
+        const id_user = parseInt(req.params.id_user, 10);
+        const billingData = await getCustomerBillingData(id_user);
+        const status = await getCustomerBillingStatus(id_user);
 
-        const id_user = parseInt(req.params.id_user);
-
-        const shopDataUserInvoice = await shoppingModel.getInvoiceData(id_user)
-        return response.success(req, res, shopDataUserInvoice, 200)
-
+        return response.success(req, res, {
+            billing: billingData,
+            ready: status.ready,
+            missing: status.missing,
+        }, 200);
     } catch (error) {
-        return response.error(req, res, { message: `getInvoiceData: ${error.message}` }, 422)
+        return response.error(req, res, { message: `getInvoiceData: ${error.message}` }, 422);
     }
-}
+};
+
+const getCustomerBillingStatusCtr = async (req, res) => {
+    try {
+        const id_user = parseInt(req.params.id_user, 10);
+        const status = await getCustomerBillingStatus(id_user);
+        return response.success(req, res, status, 200);
+    } catch (error) {
+        return response.error(req, res, { message: `getCustomerBillingStatus: ${error.message}` }, 422);
+    }
+};
 
 
 const sendMailShoppFactura = async (req, res) => {
@@ -912,6 +929,7 @@ module.exports = {
     getShoppCarById,
     getShoppCarDetails,
     getInvoiceData,
+    getCustomerBillingStatusCtr,
     ShppoingCarUrlPay,
     regeneratePayphoneLink,
     resolvePaymentLink,

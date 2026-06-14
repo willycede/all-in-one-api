@@ -217,6 +217,20 @@ const buildInvoiceDataFromBody = (body) => ({
 });
 
 const createInvoiceData = async ({ inv_data }) => {
+    const existing = await knex('invoice_data')
+        .where({ id_user: inv_data.id_user, principal: 1 })
+        .first();
+
+    if (existing) {
+        await knex('invoice_data')
+            .where({ id_invoice_data: existing.id_invoice_data })
+            .update({
+                ...inv_data,
+                updated_at: knex.fn.now(),
+            });
+        return [existing.id_invoice_data];
+    }
+
     const dataInvoice = await knex('invoice_data').insert(inv_data);
     return dataInvoice;
 };

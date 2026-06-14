@@ -151,6 +151,14 @@ const updateUserInfo = async (req,res) => {
       userData.identification_number = body.identification_number;
     }
     const userUpdated = await userModel.updateUser({user:userData});
+
+    try {
+      const { upsertInvoiceDataFromUser } = require('../helpers/customerBillingData');
+      await upsertInvoiceDataFromUser(id_users);
+    } catch (syncError) {
+      console.warn(`[billing] No se pudo sincronizar invoice_data para usuario ${id_users}: ${syncError.message}`);
+    }
+
     return response.success(req,res,userUpdated[0],200)
   } catch (error) {
     return response.error(req,res,{message:`getUserById: ${error.message}`}, 422)
