@@ -23,10 +23,6 @@ const collectBillingReadinessIssues = async (configOverride) => {
 		issues.push('Falta la ruta de salida de comprobantes PDF/XML');
 	}
 
-	if (!config.jasper_path) {
-		issues.push('Falta la plantilla Jasper del comprobante');
-	}
-
 	if (!config.signature_path) {
 		issues.push('No hay firma electrónica cargada');
 	} else if (!fs.existsSync(config.signature_path)) {
