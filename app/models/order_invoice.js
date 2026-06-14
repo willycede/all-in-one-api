@@ -212,7 +212,6 @@ const processInvoiceAfterPayment = async (id_shopping_car) => {
 			...invoiceResult,
 		};
 	} catch (error) {
-		const previousError = order.invoice_error;
 		await knex('shopping_car')
 			.where({ id_shopping_car })
 			.update({
@@ -223,7 +222,7 @@ const processInvoiceAfterPayment = async (id_shopping_car) => {
 
 		try {
 			const { notifyAdminInvoiceFailure } = require('../helpers/invoiceAdminAlerts');
-			await notifyAdminInvoiceFailure(id_shopping_car, error.message, { previousError });
+			await notifyAdminInvoiceFailure(id_shopping_car, error.message);
 		} catch (alertError) {
 			orderEmailDebug.logOrderEmailApiError('invoice:admin-alert-hook', alertError);
 		}

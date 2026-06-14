@@ -7,6 +7,8 @@ const INVOICE_COLUMNS = [
 	{ name: 'invoice_number', type: (t) => t.string('invoice_number', 30).nullable() },
 	{ name: 'invoice_error', type: (t) => t.text('invoice_error').nullable() },
 	{ name: 'invoiced_at', type: (t) => t.timestamp('invoiced_at').nullable() },
+	{ name: 'invoice_alert_muted', type: (t) => t.boolean('invoice_alert_muted').notNullable().defaultTo(false) },
+	{ name: 'invoice_alert_last_sent_at', type: (t) => t.timestamp('invoice_alert_last_sent_at').nullable() },
 ];
 
 const ensureBillingSettingsTable = async (db) => {

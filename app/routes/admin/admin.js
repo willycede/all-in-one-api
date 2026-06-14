@@ -16,6 +16,7 @@ router.post('/orders/:id_shopping_car/cancel', verifyToken, assertAdmin, adminOr
 router.get('/invoices/alerts', verifyToken, assertAdmin, adminInvoicesController.getInvoiceAlerts);
 router.get('/invoices', verifyToken, assertAdmin, adminInvoicesController.listInvoices);
 router.post('/invoices/:id_shopping_car/reprocess', verifyToken, assertAdmin, adminInvoicesController.reprocessInvoice);
+router.patch('/invoices/:id_shopping_car/alert-settings', verifyToken, assertAdmin, adminInvoicesController.updateInvoiceAlertSettings);
 router.get('/invoices/:id_shopping_car/download/:type', verifyToken, assertAdmin, adminInvoicesController.downloadInvoiceFile);
 router.get('/billing/settings', verifyToken, assertAdmin, adminBillingController.getSettings);
 router.get('/billing/invoice-diagnostics', verifyToken, assertAdmin, adminBillingController.getInvoiceDiagnostics);

@@ -103,7 +103,7 @@ const getAdminOrdersPaginated = async ({ page, limit, search, status, invoiceSta
 			'u.identification_number',
 			'u.address as customer_address'
 		)
-		.orderBy('sc.updated_at', 'desc')
+		.orderBy('sc.id_shopping_car', 'desc')
 		.limit(safeLimit)
 		.offset(offset);
 

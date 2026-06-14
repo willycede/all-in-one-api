@@ -54,9 +54,21 @@ const getInvoiceAlerts = async (req, res) => {
 	}
 };
 
+const updateInvoiceAlertSettings = async (req, res) => {
+	try {
+		const idShoppingCar = parseInt(req.params.id_shopping_car, 10);
+		const muted = !!(req.body && req.body.muted);
+		const updated = await adminInvoicesModel.setInvoiceAlertMuted(idShoppingCar, muted);
+		return response.success(req, res, updated, 200);
+	} catch (error) {
+		return response.error(req, res, { message: error.message }, 422);
+	}
+};
+
 module.exports = {
 	listInvoices,
 	reprocessInvoice,
 	downloadInvoiceFile,
 	getInvoiceAlerts,
+	updateInvoiceAlertSettings,
 };

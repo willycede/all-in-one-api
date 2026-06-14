@@ -75,6 +75,8 @@ const getAdminInvoicesPaginated = async ({ page, limit, search, status }) => {
 			'sc.invoice_number',
 			'sc.invoice_access_key',
 			'sc.invoice_error',
+			'sc.invoice_alert_muted',
+			'sc.invoice_alert_last_sent_at',
 			'sc.invoice_pdf_path',
 			'sc.invoice_xml_path',
 			'sc.invoiced_at',
@@ -85,7 +87,7 @@ const getAdminInvoicesPaginated = async ({ page, limit, search, status }) => {
 			'u.email',
 			'u.identification_number'
 		)
-		.orderBy('sc.updated_at', 'desc')
+		.orderBy('sc.id_shopping_car', 'desc')
 		.limit(safeLimit)
 		.offset(offset);
 
@@ -101,6 +103,8 @@ const getAdminInvoicesPaginated = async ({ page, limit, search, status }) => {
 			status_invoice: row.status_invoice,
 			invoice_number: row.invoice_number,
 			invoice_error: row.invoice_error,
+			invoice_alert_muted: !!row.invoice_alert_muted,
+			invoice_alert_last_sent_at: row.invoice_alert_last_sent_at,
 			created_at: row.created_at,
 			updated_at: row.updated_at,
 			name_user: row.name_user,
@@ -140,9 +144,37 @@ const reprocessAdminInvoice = async (idShoppingCar) => {
 	return result;
 };
 
+const setInvoiceAlertMuted = async (idShoppingCar, muted) => {
+	const id = parseInt(idShoppingCar, 10);
+	if (!id) {
+		throw new Error('ID de orden inválido');
+	}
+
+	const order = await knex('shopping_car')
+		.where({ id_shopping_car: id, status: PAID_STATUS })
+		.first();
+
+	if (!order) {
+		throw new Error('Orden no encontrada');
+	}
+
+	await knex('shopping_car')
+		.where({ id_shopping_car: id })
+		.update({
+			invoice_alert_muted: !!muted,
+			updated_at: knex.fn.now(),
+		});
+
+	return {
+		id_shopping_car: id,
+		invoice_alert_muted: !!muted,
+	};
+};
+
 module.exports = {
 	getAdminInvoicesPaginated,
 	reprocessAdminInvoice,
+	setInvoiceAlertMuted,
 	DEFAULT_LIMIT,
 	ALLOWED_LIMITS,
 };

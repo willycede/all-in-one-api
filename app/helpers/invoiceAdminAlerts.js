@@ -8,11 +8,51 @@ const {
 } = require('../email/templates/invoiceFailureAdmin');
 
 const PAID_STATUS = 3;
+const DEFAULT_ALERT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 
 const getAdminEmails = () => {
 	const raw = process.env.ADMIN_EMAILS;
 	if (!raw) return [];
 	return raw.split(',').map((email) => email.trim()).filter(Boolean);
+};
+
+const getAlertCooldownMs = () => {
+	const parsed = parseInt(process.env.INVOICE_ALERT_COOLDOWN_MS, 10);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_ALERT_COOLDOWN_MS;
+};
+
+const canSendInvoiceAlertForOrder = async (orderId) => {
+	const order = await knex('shopping_car')
+		.where({ id_shopping_car: orderId })
+		.first('invoice_alert_muted', 'invoice_alert_last_sent_at');
+
+	if (!order) {
+		return { allowed: false, reason: 'order_not_found' };
+	}
+
+	if (order.invoice_alert_muted) {
+		return { allowed: false, reason: 'muted' };
+	}
+
+	if (order.invoice_alert_last_sent_at) {
+		const elapsed = Date.now() - new Date(order.invoice_alert_last_sent_at).getTime();
+		if (elapsed < getAlertCooldownMs()) {
+			return { allowed: false, reason: 'cooldown' };
+		}
+	}
+
+	return { allowed: true };
+};
+
+const markInvoiceAlertsSent = async (orderIds) => {
+	const ids = [...new Set((orderIds || []).filter(Boolean))];
+	if (!ids.length) {
+		return;
+	}
+
+	await knex('shopping_car')
+		.whereIn('id_shopping_car', ids)
+		.update({ invoice_alert_last_sent_at: knex.fn.now() });
 };
 
 const getFailedInvoiceOrders = async (limit = 10) => knex('shopping_car as sc')
@@ -22,6 +62,7 @@ const getFailedInvoiceOrders = async (limit = 10) => knex('shopping_car as sc')
 		'sc.invoice_error',
 		'sc.updated_at',
 		'sc.shopping_car_total',
+		'sc.invoice_alert_muted',
 		'u.name_user',
 		'u.last_name_user',
 		'u.email'
@@ -89,22 +130,33 @@ const sendAdminInvoiceFailureEmail = async ({ orders, locale = 'sp' }) => {
 	return { sent: true, count: list.length };
 };
 
-const notifyAdminInvoiceFailure = async (orderId, errorMessage, { previousError = null } = {}) => {
-	if (previousError) {
-		return { sent: false, reason: 'already_had_error' };
-	}
-
+const notifyAdminInvoiceFailure = async (orderId, errorMessage) => {
 	try {
+		const eligibility = await canSendInvoiceAlertForOrder(orderId);
+		if (!eligibility.allowed) {
+			orderEmailDebug.logOrderEmail('invoice:admin-alert:skipped', {
+				orderId,
+				reason: eligibility.reason,
+			});
+			return { sent: false, reason: eligibility.reason };
+		}
+
 		const order = await knex('shopping_car')
 			.where({ id_shopping_car: orderId })
 			.first();
 
-		return await sendAdminInvoiceFailureEmail({
+		const result = await sendAdminInvoiceFailureEmail({
 			orders: [{
 				id_shopping_car: orderId,
 				invoice_error: errorMessage || (order && order.invoice_error),
 			}],
 		});
+
+		if (result.sent) {
+			await markInvoiceAlertsSent([orderId]);
+		}
+
+		return result;
 	} catch (error) {
 		orderEmailDebug.logOrderEmailApiError('invoice:admin-alert', error);
 		return { sent: false, reason: error.message };
@@ -117,7 +169,23 @@ const notifyAdminInvoiceFailureBatch = async (failures) => {
 	}
 
 	try {
-		const orders = await Promise.all(failures.map(async (item) => {
+		const eligible = [];
+		for (const item of failures) {
+			const eligibility = await canSendInvoiceAlertForOrder(item.orderId);
+			if (eligibility.allowed) {
+				eligible.push(item);
+			}
+		}
+
+		if (!eligible.length) {
+			orderEmailDebug.logOrderEmail('invoice:admin-alert-batch:skipped', {
+				reason: 'all_muted_or_cooldown',
+				orderIds: failures.map((item) => item.orderId),
+			});
+			return { sent: false, reason: 'all_muted_or_cooldown' };
+		}
+
+		const orders = await Promise.all(eligible.map(async (item) => {
 			const row = await knex('shopping_car')
 				.where({ id_shopping_car: item.orderId })
 				.first();
@@ -127,7 +195,13 @@ const notifyAdminInvoiceFailureBatch = async (failures) => {
 			};
 		}));
 
-		return await sendAdminInvoiceFailureEmail({ orders });
+		const result = await sendAdminInvoiceFailureEmail({ orders });
+
+		if (result.sent) {
+			await markInvoiceAlertsSent(eligible.map((item) => item.orderId));
+		}
+
+		return result;
 	} catch (error) {
 		orderEmailDebug.logOrderEmailApiError('invoice:admin-alert-batch', error);
 		return { sent: false, reason: error.message };
@@ -140,4 +214,7 @@ module.exports = {
 	notifyAdminInvoiceFailure,
 	notifyAdminInvoiceFailureBatch,
 	sendAdminInvoiceFailureEmail,
+	canSendInvoiceAlertForOrder,
+	markInvoiceAlertsSent,
+	getAlertCooldownMs,
 };
