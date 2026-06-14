@@ -22,6 +22,8 @@ const buildInvoiceServiceParams = (config, orderId) => ({
 	dirMatriz: config.company_address,
 	firma: config.signature_path,
 	claveFirma: config.signature_password,
+	establecimiento: config.establishment_code || '001',
+	puntoEmision: config.emission_point || '001',
 });
 
 const buildInvoicePayloadSummary = async (config, orderId) => {
@@ -42,6 +44,13 @@ const buildInvoicePayloadSummary = async (config, orderId) => {
 	}
 
 	let signatureInspection = null;
+	if (!config.jasper_path) {
+		warnings.push('No hay plantilla Jasper configurada. El servicio Java no podrá generar el RIDE PDF.');
+	} else {
+		warnings.push(
+			'La plantilla Jasper se valida en el servidor WildFly. Usa ruta absoluta (.jasper o .jrxml) o nombre relativo a rutajasper.',
+		);
+	}
 	if (signaturePath && fs.existsSync(signaturePath) && config.signature_password) {
 		try {
 			signatureInspection = await inspectSignatureFile({
@@ -66,11 +75,14 @@ const buildInvoicePayloadSummary = async (config, orderId) => {
 			path: config.output_path,
 			namefile: 'factura',
 			jasper_file: config.jasper_path,
+			jasper_configured: !!config.jasper_path,
 			ambiente: config.ambiente,
 			ruc: config.company_ruc,
 			razonSocial: config.company_legal_name,
 			nombreComercial: config.company_trade_name,
 			dirMatriz: config.company_address,
+			establecimiento: config.establishment_code || '001',
+			puntoEmision: config.emission_point || '001',
 			firma: signaturePath,
 			firma_exists: !!(signaturePath && fs.existsSync(signaturePath)),
 			claveFirma_configured: !!config.signature_password,
