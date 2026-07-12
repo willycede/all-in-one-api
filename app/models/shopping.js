@@ -76,14 +76,18 @@ const putShoppingDetailsUpdate = async (id_details, {body}, trx) => {
     .where('id_details', '=', id_details)
     .update(
     {
-        details_quantity: body.details_quantity, 
-        details_price: body.details_price, 
-        details_discount: body.details_discount, 
-        details_subtotal: body.details_subtotal, 
-        details_iva: body.details_iva, 
-        details_total: body.details_total, 
+        details_quantity: body.details_quantity,
+        details_price: body.details_price,
+        details_discount: body.details_discount,
+        details_subtotal: body.details_subtotal,
+        details_iva: body.details_iva,
+        details_total: body.details_total,
+        id_modifier: body.id_modifier || null,
+        modifier_name: body.modifier_name || null,
+        modifier_price: body.modifier_price || 0,
+        id_city: body.id_city || null,
         updated_at:knex.fn.now()
-        
+
     });
 
     return await knex.select()
@@ -105,13 +109,16 @@ const getShopDetailsCarByIdShop = async (id_shopping_car) => {
     const cartDetails = await knex('shopping_car_details as d')
         .join('products as p', 'p.id_products', 'd.id_product')
         .join('product_images as pi', 'pi.product_id', 'p.id_products')
+        .leftJoin('city as c', 'c.id_city', 'd.id_city')
         .select
         (
-            'd.id_product','p.cod_products','p.name','p.description', 
+            'd.id_product','p.cod_products','p.name','p.description',
             'd.id_details', 'd.id_shopping_car','d.details_quantity',
             'd.details_price','d.details_discount','d.details_subtotal',
             'd.details_iva','d.details_total','pi.url','pi.name as name_img',
-            'p.required_documents'
+            'p.required_documents',
+            'd.id_modifier','d.modifier_name','d.modifier_price',
+            'd.id_city','c.name as city_name'
         )
         .where(
             {
@@ -357,15 +364,19 @@ const createShoppingDetailsMetodo = async (
 
     const shopping_car_details = {
 
-        id_shopping_car: body.id_shopping_car, 
-        id_product: body.id_product, 
-        details_quantity: body.details_quantity, 
-        details_price: body.details_price, 
-        details_discount: body.details_discount, 
-        details_subtotal: body.details_subtotal, 
-        details_iva: body.details_iva, 
-        details_total: body.details_total, 
-        created_at: new Date(Date.now()), 
+        id_shopping_car: body.id_shopping_car,
+        id_product: body.id_product,
+        details_quantity: body.details_quantity,
+        details_price: body.details_price,
+        details_discount: body.details_discount,
+        details_subtotal: body.details_subtotal,
+        details_iva: body.details_iva,
+        details_total: body.details_total,
+        id_modifier: body.id_modifier || null,
+        modifier_name: body.modifier_name || null,
+        modifier_price: body.modifier_price || 0,
+        id_city: body.id_city || null,
+        created_at: new Date(Date.now()),
         updated_at: new Date(Date.now()),
         status: body.status
     }

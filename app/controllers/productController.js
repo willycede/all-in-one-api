@@ -21,6 +21,7 @@ const getProductsByCategoryId = async(req,res)=>{
 
         const result = await productModel.getProductsPaginated({
             categoryId: category_id,
+            subcategoryId: query.subcategoryId,
             searchBy: query.searchBy,
             page: query.page,
             limit: query.limit,

@@ -5,6 +5,7 @@ const couponsModel = require('../models/coupons');
 const { processInvoiceAfterPayment } = require('../models/order_invoice');
 const response = require('../config/response');
 const payphoneCheckout = require('../helpers/payphoneCheckout');
+const { applyModifierPricing } = require('../helpers/cartLinePricing');
 const {
     getCustomerBillingData,
     getCustomerBillingStatus,
@@ -99,6 +100,8 @@ const createShoppingCarDetailsCtr = async (req, res) => {
         var body = req.body;
         var id_details = body.id_details
 
+        /* resuelve el modificador (color) contra la BD y recalcula precios */
+        await applyModifierPricing(body);
 
         //si el id del detalle es mayor a 0 actualizamos el detalle
         if (id_details == 0) {

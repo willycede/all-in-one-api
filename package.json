@@ -14,6 +14,7 @@
     "migrate:billing": "node app/db/scripts/ensure_billing_settings.js",
     "verify:billing-invoice": "node app/db/scripts/verify_billing_invoice_payload.js",
     "migrate:audit-logs": "node app/db/scripts/ensure_audit_logs.js",
+    "migrate:modifiers": "node app/db/scripts/ensure_product_modifiers.js",
     "migrate:prod": "node app/db/scripts/baseline_migrations.js && knex migrate:latest",
     "promote:admin": "node app/db/scripts/promote_admin_user.js",
     "disable:2fa": "node app/db/scripts/disable_user_two_factor.js",

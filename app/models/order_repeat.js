@@ -92,8 +92,25 @@ const repeatOrderForUser = async (id_shopping_car, id_user) => {
 			continue;
 		}
 
+		let modifier = null;
+		if (line.id_modifier) {
+			modifier = await knex('product_modifiers')
+				.where({
+					id_modifier: line.id_modifier,
+					id_products: line.id_product,
+					status: constants.STATUS_ACTIVE,
+				})
+				.first();
+			if (!modifier) {
+				skipped.push({ name: line.name, reason: 'El color seleccionado ya no está disponible' });
+				continue;
+			}
+		}
+
+		const priceDelta = modifier ? parseFloat(modifier.price_delta) || 0 : 0;
+		const unitPrice = price + priceDelta;
 		const quantity = parseInt(line.details_quantity, 10) || 1;
-		const subtotal = quantity * price;
+		const subtotal = quantity * unitPrice;
 		const iva = subtotal * IVA_RATE;
 		const lineTotal = subtotal + iva;
 
@@ -104,11 +121,15 @@ const repeatOrderForUser = async (id_shopping_car, id_user) => {
 				id_shopping_car: targetCartId,
 				id_product: line.id_product,
 				details_quantity: quantity,
-				details_price: price,
+				details_price: unitPrice,
 				details_discount: 0,
 				details_subtotal: subtotal,
 				details_iva: iva,
 				details_total: lineTotal,
+				id_modifier: modifier ? modifier.id_modifier : null,
+				modifier_name: modifier ? modifier.name : null,
+				modifier_price: priceDelta,
+				id_city: line.id_city || null,
 				status: constants.STATUS_ACTIVE,
 			},
 		});

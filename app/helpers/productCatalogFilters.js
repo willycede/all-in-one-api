@@ -6,12 +6,14 @@ const parseFilterParams = (query) => {
 	const minPrice = minRaw !== undefined && minRaw !== '' ? parseFloat(minRaw) : null;
 	const maxPrice = maxRaw !== undefined && maxRaw !== '' ? parseFloat(maxRaw) : null;
 	const cityId = query.cityId ? parseInt(query.cityId, 10) : null;
+	const subcategoryId = query.subcategoryId ? parseInt(query.subcategoryId, 10) : null;
 	const sortBy = ALLOWED_SORT.includes(query.sortBy) ? query.sortBy : 'name_asc';
 
 	return {
 		minPrice: Number.isFinite(minPrice) && minPrice >= 0 ? minPrice : null,
 		maxPrice: Number.isFinite(maxPrice) && maxPrice >= 0 ? maxPrice : null,
 		cityId: Number.isFinite(cityId) && cityId > 0 ? cityId : null,
+		subcategoryId: Number.isFinite(subcategoryId) && subcategoryId > 0 ? subcategoryId : null,
 		sortBy,
 	};
 };

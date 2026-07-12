@@ -1,6 +1,7 @@
 //Import necessary libraries
 const generalConstants = require('../constants/constants')
 const knex = require('../db/knex')
+const productModifiersModel = require('./productModifiers')
 const {
 	parseFilterParams,
 	applyPriceFilters,
@@ -21,11 +22,18 @@ const normalizePagination = (page, limit) => {
 const buildProductsBaseQuery = (categoryId, searchBy, filters) => {
 	let query = knex('products as p').where('p.status', generalConstants.STATUS_ACTIVE);
 
-	if (categoryId && categoryId !== 'undefined') {
+	const hasGeneralCategory = categoryId && categoryId !== 'undefined';
+	if (hasGeneralCategory || filters.subcategoryId) {
 		query = query
 			.leftJoin('features as f', 'f.id_products', 'p.id_products')
-			.join('category as cat', 'cat.id_category', 'f.id_category')
-			.where('cat.id_general_category', parseInt(categoryId, 10));
+			.join('category as cat', 'cat.id_category', 'f.id_category');
+
+		if (hasGeneralCategory) {
+			query = query.where('cat.id_general_category', parseInt(categoryId, 10));
+		}
+		if (filters.subcategoryId) {
+			query = query.where('cat.id_category', filters.subcategoryId);
+		}
 	}
 
 	if (searchBy && String(searchBy).trim()) {
@@ -38,10 +46,10 @@ const buildProductsBaseQuery = (categoryId, searchBy, filters) => {
 	return query;
 };
 
-const getProductsPaginated = async ({ categoryId, searchBy, page, limit, minPrice, maxPrice, cityId, sortBy }) => {
+const getProductsPaginated = async ({ categoryId, subcategoryId, searchBy, page, limit, minPrice, maxPrice, cityId, sortBy }) => {
 	const { page: safePage, limit: safeLimit } = normalizePagination(page, limit);
 	const offset = (safePage - 1) * safeLimit;
-	const filters = parseFilterParams({ minPrice, maxPrice, cityId, sortBy });
+	const filters = parseFilterParams({ minPrice, maxPrice, cityId, sortBy, subcategoryId });
 	const baseQuery = buildProductsBaseQuery(categoryId, searchBy, filters);
 
 	const countSubquery = baseQuery.clone()
@@ -65,7 +73,8 @@ const getProductsPaginated = async ({ categoryId, searchBy, page, limit, minPric
 			'p.description',
 			'p.price',
 			'p.required_documents',
-			'p.allowed_cities'
+			'p.allowed_cities',
+			knex.raw('(select count(*) from product_modifiers pm where pm.id_products = p.id_products and pm.status = ?) as modifiers_count', [generalConstants.STATUS_ACTIVE])
 		)
 		.groupBy(
 			'p.id_products',
@@ -112,7 +121,21 @@ const getProductEditData = async (id_products) => {
 	const feature = await getProductFeature(id_products);
 	product.id_category = feature ? feature.id_category : null;
 	product.images = await getListImagesByProductId(id_products);
+	product.modifiers = await productModifiersModel.getModifiersByProductId(id_products);
 	return product;
+};
+
+const normalizeAllowedCities = (value) => {
+	if (Array.isArray(value)) {
+		const cityIds = value
+			.map((id) => parseInt(id, 10))
+			.filter((id) => Number.isFinite(id) && id > 0);
+		return cityIds.length > 0 ? cityIds.join(',') : null;
+	}
+	if (typeof value === 'string') {
+		return value.trim() || null;
+	}
+	return null;
 };
 
 const validateUpdateProduct = async ({ body }) => {
@@ -152,18 +175,28 @@ const validateUpdateProduct = async ({ body }) => {
 const putProductsUpdate = async ({ body }, trx) => {
 	const db = trx || knex;
 
+	const productUpdate = {
+		name: body.name,
+		cod_products: body.cod_products,
+		description: body.description,
+		price: body.price,
+		discount: body.discount,
+		id_cod_catalog: body.id_cod_catalog,
+		external_product_id: body.external_product_id || null,
+		updated_at: knex.fn.now(),
+	};
+
+	if (body.allowed_cities !== undefined) {
+		productUpdate.allowed_cities = normalizeAllowedCities(body.allowed_cities);
+	}
+
 	await db('products')
 		.where('id_products', '=', body.id_products)
-		.update({
-			name: body.name,
-			cod_products: body.cod_products,
-			description: body.description,
-			price: body.price,
-			discount: body.discount,
-			id_cod_catalog: body.id_cod_catalog,
-			external_product_id: body.external_product_id || null,
-			updated_at: knex.fn.now(),
-		});
+		.update(productUpdate);
+
+	if (Array.isArray(body.modifiers)) {
+		await productModifiersModel.replaceProductModifiers(body.id_products, body.modifiers);
+	}
 
 	if (body.id_category) {
 		const feature = await getProductFeature(body.id_products);
@@ -281,7 +314,7 @@ const postCreateFeacture = async (id_products, id_category, id_catalogo) => {
 
 };
 
-const postCreateProducts = async (id_cod_catalog, cod_products, name, description, price, discount, external_product_id) => {
+const postCreateProducts = async (id_cod_catalog, cod_products, name, description, price, discount, external_product_id, allowed_cities) => {
 
     const result = await knex('products').insert(
         {
@@ -293,7 +326,9 @@ const postCreateProducts = async (id_cod_catalog, cod_products, name, descriptio
             discount,
             status: generalConstants.STATUS_ACTIVE,
             created_at: knex.fn.now(),
-            external_product_id
+            updated_at: knex.fn.now(),
+            external_product_id,
+            allowed_cities: normalizeAllowedCities(allowed_cities)
         }
     )
 
@@ -354,14 +389,19 @@ const RegistraProductModel = async ({
     const discount = body.discount
     const id_category = body.id_category
     const external_product_id = body.external_product_id
+    const allowed_cities = body.allowed_cities
 
 
-    const createdProduct = await postCreateProducts(id_cod_catalog, cod_products, name, description, price, discount, external_product_id);
+    const createdProduct = await postCreateProducts(id_cod_catalog, cod_products, name, description, price, discount, external_product_id, allowed_cities);
 
     if (Object.entries(createdProduct).length > 0) {
 
         const id_products = createdProduct.id_products;
         const createdFeature = await postCreateFeacture(id_products, id_category, id_cod_catalog);
+
+        if (Array.isArray(body.modifiers)) {
+            createdProduct.modifiers = await productModifiersModel.replaceProductModifiers(id_products, body.modifiers);
+        }
 
     }
 
@@ -370,7 +410,10 @@ const RegistraProductModel = async ({
 };
 
 const getRandomProducts = async() => {
-    return await knex.select()
+    return await knex.select(
+        'products.*',
+        knex.raw('(select count(*) from product_modifiers pm where pm.id_products = products.id_products and pm.status = ?) as modifiers_count', [generalConstants.STATUS_ACTIVE])
+    )
     .from('products')
     .where({status: generalConstants.STATUS_ACTIVE})
     .limit(10)

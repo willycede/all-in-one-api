@@ -38,6 +38,17 @@ test('parseFilterParams parses price and city', () => {
 	assert.strictEqual(result.sortBy, 'price_desc');
 });
 
+test('parseFilterParams parses subcategory', () => {
+	const result = parseFilterParams({ subcategoryId: '7' });
+	assert.strictEqual(result.subcategoryId, 7);
+});
+
+test('parseFilterParams rejects invalid subcategory', () => {
+	assert.strictEqual(parseFilterParams({ subcategoryId: 'abc' }).subcategoryId, null);
+	assert.strictEqual(parseFilterParams({ subcategoryId: '-2' }).subcategoryId, null);
+	assert.strictEqual(parseFilterParams({}).subcategoryId, null);
+});
+
 test('parseFilterParams rejects invalid sort', () => {
 	const result = parseFilterParams({ sortBy: 'invalid' });
 	assert.strictEqual(result.sortBy, 'name_asc');
