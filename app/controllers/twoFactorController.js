@@ -115,7 +115,7 @@ const verifyLogin = async (req, res) => {
 
 		let fullUser;
 		if (isAdmin) {
-			fullUser = await userModel.getUserByCompanyAndEmail({
+			fullUser = await userModel.getAdminUserForSession({
 				email: user.email,
 				company_id,
 			});

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const constants = require('../constants/constants');
 require('dotenv').config();
 
 const extractUser = (decoded) => decoded.user || decoded;
@@ -42,10 +43,12 @@ const assertSelfUser = (req, res, next) => {
 	return res.status(403).json({ error: { message: 'No tienes permiso para acceder a este recurso' }, data: {} });
 };
 
+const ADMIN_ROLES = [constants.ADMIN_ROL, constants.SUPER_ADMIN_ROL];
+
 const assertAdmin = (req, res, next) => {
 	const user = req.userInfo || {};
 	const roleId = parseInt(user.id_rol, 10);
-	if (roleId === 1) {
+	if (ADMIN_ROLES.includes(roleId)) {
 		return next();
 	}
 	return res.status(403).json({ error: { message: 'Acceso restringido a administradores' }, data: {} });

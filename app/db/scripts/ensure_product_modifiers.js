@@ -2,7 +2,8 @@ require('dotenv').config();
 const db = require('../knex');
 const generalConstants = require('../../constants/constants');
 
-const SEAT_GENERAL_CATEGORY = {
+const ACCESSORIES_GENERAL_CATEGORY = 'Accesorios';
+const SEAT_CATEGORY = {
 	name: 'Asientos',
 	description: 'Tapices y asientos para vehículos',
 };
@@ -46,31 +47,55 @@ const ensureShoppingCarDetailColumns = async () => {
 };
 
 const ensureSeatCategories = async () => {
-	let general = await db('general_categories')
-		.where({ name: SEAT_GENERAL_CATEGORY.name })
-		.first();
+	const hasParentColumn = await db.schema.hasColumn('category', 'id_parent_category');
+	if (!hasParentColumn) {
+		throw new Error('Falta category.id_parent_category; ejecuta primero npm run migrate:prod');
+	}
 
+	const general = await db('general_categories')
+		.where({ name: ACCESSORIES_GENERAL_CATEGORY })
+		.first();
 	if (!general) {
-		const inserted = await db('general_categories').insert({
-			name: SEAT_GENERAL_CATEGORY.name,
-			description: SEAT_GENERAL_CATEGORY.description,
+		throw new Error(`No existe la categoría general "${ACCESSORIES_GENERAL_CATEGORY}"`);
+	}
+
+	let seatCategory = await db('category')
+		.where({
+			id_general_category: general.idgeneral_categories,
+			name: SEAT_CATEGORY.name,
+		})
+		.whereNull('id_parent_category')
+		.first();
+	if (!seatCategory) {
+		const inserted = await db('category').insert({
+			id_company: SEAT_COMPANY_ID,
+			id_general_category: general.idgeneral_categories,
+			id_parent_category: null,
+			name: SEAT_CATEGORY.name,
+			description: SEAT_CATEGORY.description,
 			status: generalConstants.STATUS_ACTIVE,
+			created_at: db.fn.now(),
 		});
-		general = await db('general_categories')
-			.where({ idgeneral_categories: inserted[0] })
+		seatCategory = await db('category')
+			.where({ id_category: inserted[0] })
 			.first();
-		console.log(`[product_modifiers] Categoría general "${SEAT_GENERAL_CATEGORY.name}" creada`);
+		console.log(`[product_modifiers] Categoría "${SEAT_CATEGORY.name}" creada bajo Accesorios`);
 	}
 
 	for (let i = 0; i < SEAT_SUBCATEGORIES.length; i += 1) {
 		const name = SEAT_SUBCATEGORIES[i];
 		const exists = await db('category')
-			.where({ name, id_general_category: general.idgeneral_categories })
+			.where({
+				name,
+				id_general_category: general.idgeneral_categories,
+				id_parent_category: seatCategory.id_category,
+			})
 			.first();
 		if (!exists) {
 			await db('category').insert({
 				id_company: SEAT_COMPANY_ID,
 				id_general_category: general.idgeneral_categories,
+				id_parent_category: seatCategory.id_category,
 				name,
 				description: `Asientos ${name}`,
 				status: generalConstants.STATUS_ACTIVE,

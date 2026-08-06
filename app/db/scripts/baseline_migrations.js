@@ -14,8 +14,11 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const db = require('../knex');
+const knexConfig = require('../../../knexfile');
 
 const MIGRATIONS_DIR = path.join(__dirname, '../migrations');
+const MIGRATIONS_TABLE = (knexConfig.migrations && knexConfig.migrations.tableName) || 'knex_migrations';
+const MIGRATIONS_LOCK_TABLE = `${MIGRATIONS_TABLE}_lock`;
 
 // No marcar como aplicadas: migrate:latest las ejecutará (son idempotentes o nuevas).
 const RUN_ON_MIGRATE = new Set([
@@ -26,12 +29,14 @@ const RUN_ON_MIGRATE = new Set([
 	'20260609120000_create_audit_logs_table.js',
 	'20260613120000_add_signature_deploy_path_to_billing_settings.js',
 	'20260614120000_create_invoice_data_table.js',
+	'20260806120000_category_hierarchy.js',
+	'20260806140000_super_admin_role.js',
 ]);
 
 async function ensureKnexMetaTables() {
-	const hasMigrations = await db.schema.hasTable('knex_migrations');
+	const hasMigrations = await db.schema.hasTable(MIGRATIONS_TABLE);
 	if (!hasMigrations) {
-		await db.schema.createTable('knex_migrations', (t) => {
+		await db.schema.createTable(MIGRATIONS_TABLE, (t) => {
 			t.increments('id').primary();
 			t.string('name', 255);
 			t.integer('batch');
@@ -39,13 +44,13 @@ async function ensureKnexMetaTables() {
 		});
 	}
 
-	const hasLock = await db.schema.hasTable('knex_migrations_lock');
+	const hasLock = await db.schema.hasTable(MIGRATIONS_LOCK_TABLE);
 	if (!hasLock) {
-		await db.schema.createTable('knex_migrations_lock', (t) => {
+		await db.schema.createTable(MIGRATIONS_LOCK_TABLE, (t) => {
 			t.increments('index').primary();
 			t.integer('is_locked');
 		});
-		await db('knex_migrations_lock').insert({ is_locked: 0 });
+		await db(MIGRATIONS_LOCK_TABLE).insert({ is_locked: 0 });
 	}
 }
 
@@ -56,17 +61,17 @@ async function baseline() {
 		.filter((file) => file.endsWith('.js'))
 		.sort();
 
-	const applied = new Set(await db('knex_migrations').pluck('name'));
+	const applied = new Set(await db(MIGRATIONS_TABLE).pluck('name'));
 	const toBaseline = files.filter((file) => !applied.has(file) && !RUN_ON_MIGRATE.has(file));
 
 	if (toBaseline.length === 0) {
 		console.log('[baseline] No hay migraciones históricas pendientes de marcar.');
 	} else {
-		const batchRow = await db('knex_migrations').max('batch as maxBatch').first();
+		const batchRow = await db(MIGRATIONS_TABLE).max('batch as maxBatch').first();
 		const batch = ((batchRow && batchRow.maxBatch) || 0) + 1;
 		const now = new Date();
 
-		await db('knex_migrations').insert(
+		await db(MIGRATIONS_TABLE).insert(
 			toBaseline.map((name) => ({
 				name,
 				batch,

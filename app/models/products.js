@@ -32,7 +32,10 @@ const buildProductsBaseQuery = (categoryId, searchBy, filters) => {
 			query = query.where('cat.id_general_category', parseInt(categoryId, 10));
 		}
 		if (filters.subcategoryId) {
-			query = query.where('cat.id_category', filters.subcategoryId);
+			query = query.where(function categoryScope() {
+				this.where('cat.id_category', filters.subcategoryId)
+					.orWhere('cat.id_parent_category', filters.subcategoryId);
+			});
 		}
 	}
 
@@ -138,6 +141,28 @@ const normalizeAllowedCities = (value) => {
 	return null;
 };
 
+const validateLeafCategory = async (idCategory) => {
+	if (!idCategory) {
+		return 'La categoría del producto es obligatoria';
+	}
+	const category = await knex('category')
+		.where({
+			id_category: idCategory,
+			status: generalConstants.STATUS_ACTIVE,
+		})
+		.first();
+	if (!category) {
+		return 'La categoría seleccionada no existe o está inactiva';
+	}
+	const child = await knex('category')
+		.where({
+			id_parent_category: idCategory,
+			status: generalConstants.STATUS_ACTIVE,
+		})
+		.first();
+	return child ? 'Selecciona una categoría final, no una categoría agrupadora' : '';
+};
+
 const validateUpdateProduct = async ({ body }) => {
 	let validationObject = {};
 	let errorMessage = '';
@@ -156,6 +181,10 @@ const validateUpdateProduct = async ({ body }) => {
 	}
 	if (body.discount >= body.price) {
 		validationObject.discount = 'El descuento no puede ser mayor o igual al precio';
+	}
+	const categoryError = await validateLeafCategory(body.id_category);
+	if (categoryError) {
+		validationObject.id_category = categoryError;
 	}
 
 	if (body.cod_products && body.id_products) {
@@ -361,6 +390,10 @@ const validateExistProduct = async ({
 
     if (body.discount >= body.price) {
         validationObject.description = "El descuento no puede ser mayor o igual al precio";
+    }
+    const categoryError = await validateLeafCategory(body.id_category);
+    if (categoryError) {
+        validationObject.id_category = categoryError;
     }
 
     const ValidaRegistroProduct = await getProductsByCodProduct(body.cod_products);

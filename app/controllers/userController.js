@@ -84,14 +84,15 @@ const loginAdmin = async (req,res) => {
     const email = body.email;
     const password= body.password;
     const company_id = body.company_id;
-    const validatedData = await userModel.validateUserLoginData({email, password, isAdmin: true, company_id});
-    if(Object.entries(validatedData.validationObject).length>0 || validatedData.errorMessage){
-      return response.error(req,res,{message:validatedData.errorMessage, validationObject: validatedData.validationObject}, 422);
+    const resolved = await userModel.resolveAdminLogin({email, password, company_id});
+    if(Object.entries(resolved.validationObject).length>0 || resolved.errorMessage){
+      return response.error(req,res,{
+        message: resolved.errorMessage,
+        errorCode: resolved.errorCode,
+        validationObject: resolved.validationObject,
+      }, 422);
     }
-    const user = await userModel.getUserByCompanyAndEmail({
-      email,
-      company_id
-    });
+    const user = resolved.user;
     user.two_factor_enabled = !!user.two_factor_enabled;
     return handleLoginAfterCredentials(req, res, user, { isAdmin: true });
   } catch (error) {

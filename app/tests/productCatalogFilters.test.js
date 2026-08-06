@@ -5,6 +5,7 @@ const {
 } = require('../helpers/productCatalogFilters');
 const { parseRequiredDocuments } = require('../helpers/cartValidation');
 const { calculateDiscountAmount } = require('../models/coupons');
+const { buildCategoryTree } = require('../helpers/categoryHierarchy');
 
 let passed = 0;
 let failed = 0;
@@ -53,6 +54,27 @@ test('parseFilterParams rejects invalid sort', () => {
 	const result = parseFilterParams({ sortBy: 'invalid' });
 	assert.strictEqual(result.sortBy, 'name_asc');
 	assert.ok(ALLOWED_SORT.includes('price_asc'));
+});
+
+console.log('categoryHierarchy.buildCategoryTree');
+test('builds three category levels', () => {
+	const tree = buildCategoryTree([
+		{ id_category: 1, id_parent_category: null, name: 'Asientos' },
+		{ id_category: 2, id_parent_category: 1, name: 'Cuero' },
+		{ id_category: 3, id_parent_category: 1, name: 'Eco cuero' },
+	]);
+	assert.strictEqual(tree.length, 1);
+	assert.strictEqual(tree[0].name, 'Asientos');
+	assert.deepStrictEqual(tree[0].categories.map((item) => item.name), ['Cuero', 'Eco cuero']);
+});
+
+test('keeps separate root categories', () => {
+	const tree = buildCategoryTree([
+		{ id_category: 1, id_parent_category: null, name: 'Accesorios' },
+		{ id_category: 2, id_parent_category: null, name: 'Asientos' },
+	]);
+	assert.strictEqual(tree.length, 2);
+	assert.ok(tree.every((item) => item.categories.length === 0));
 });
 
 console.log('cartValidation.parseRequiredDocuments');

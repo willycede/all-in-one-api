@@ -70,7 +70,7 @@ const validateFeatureData = async ({body, isCreate = true}) => {
   }
   const featuresDb = await getFeatureByIds({
     id_products: body.id_products,
-    id_category: body.id_products,
+    id_category: body.id_category,
     id_catalogo: body.id_catalogo,
     isCreate
   })

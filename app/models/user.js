@@ -104,6 +104,164 @@ const getUserByCompanyAndEmail = async ({company_id, email}) => {
     .first();
 };
 
+const ADMIN_LOGIN_ERROR = {
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  USER_INACTIVE: 'USER_INACTIVE',
+  INVALID_PASSWORD: 'INVALID_PASSWORD',
+  NOT_ADMIN: 'NOT_ADMIN',
+  COMPANY_REQUIRED: 'COMPANY_REQUIRED',
+  COMPANY_NOT_ASSIGNED: 'COMPANY_NOT_ASSIGNED',
+};
+
+const ADMIN_ROLES = [constants.ADMIN_ROL, constants.SUPER_ADMIN_ROL];
+
+const getUserByEmailAnyStatus = async ({email}) => {
+  return await knex('users')
+    .where({ 'users.email': email })
+    .first();
+};
+
+// Devuelve una fila por cada empresa donde el correo tiene rol administrativo.
+// Se usa para poder explicar con precisión por qué se rechaza un ingreso.
+const getAdminMembershipsByEmail = async ({email}) => {
+  return await knex('users')
+    .join('company_users', 'company_users.id_users', 'users.id_users')
+    .join('user_rol', 'user_rol.id_company_user', 'company_users.id_company_user')
+    .leftJoin('company', 'company.id_company', 'company_users.id_company')
+    .select(
+      'users.id_users',
+      'users.name_user',
+      'users.last_name_user',
+      'users.identification_number',
+      'users.email',
+      'users.password',
+      'users.status',
+      'users.recovery_pass',
+      'users.access_token',
+      'users.token_expires_in',
+      'users.two_factor_enabled',
+      'user_rol.id_rol',
+      'user_rol.id_user_rol',
+      'company_users.id_company_user',
+      'company_users.id_company',
+      'company.name as company_name'
+    )
+    .where({ 'users.email': email, 'users.status': constants.STATUS_ACTIVE })
+    .whereIn('user_rol.id_rol', ADMIN_ROLES);
+};
+
+const findSuperAdminMembership = (memberships = []) => memberships.find(
+  (membership) => parseInt(membership.id_rol, 10) === constants.SUPER_ADMIN_ROL
+);
+
+const findCompanyMembership = (memberships = [], company_id) => {
+  const companyId = parseInt(company_id, 10);
+  if (!Number.isFinite(companyId)) {
+    return null;
+  }
+  return memberships.find(
+    (membership) => parseInt(membership.id_company, 10) === companyId
+  ) || null;
+};
+
+const describeMembershipCompanies = (memberships = []) => {
+  const names = [...new Set(
+    memberships.map((membership) => membership.company_name).filter(Boolean)
+  )];
+  return names.length > 0 ? names.join(', ') : null;
+};
+
+// Resuelve la sesión administrativa una vez superado el 2FA, sin revalidar credenciales.
+const getAdminUserForSession = async ({email, company_id}) => {
+  const memberships = await getAdminMembershipsByEmail({ email });
+  if (memberships.length === 0) {
+    return null;
+  }
+  return findSuperAdminMembership(memberships)
+    || findCompanyMembership(memberships, company_id);
+};
+
+const resolveAdminLogin = async ({email, password, company_id}) => {
+  const validationObject = {};
+  if (!email) {
+    validationObject.email = 'El email es requerido y no puede estar vacio o ser nulo.';
+  }
+  if (!password) {
+    validationObject.password = 'La contraseña es requerida y no puede estar vacia';
+  }
+  if (email && !validarEmail(email)) {
+    validationObject.email = 'El email ingresado no posee un formato valido.';
+  }
+  if (Object.keys(validationObject).length > 0) {
+    return { validationObject, errorMessage: '', errorCode: null, user: null };
+  }
+
+  const reject = (errorCode, errorMessage) => ({
+    validationObject: {},
+    errorMessage,
+    errorCode,
+    user: null,
+  });
+
+  const account = await getUserByEmailAnyStatus({ email });
+  if (!account) {
+    return reject(
+      ADMIN_LOGIN_ERROR.USER_NOT_FOUND,
+      'No existe una cuenta registrada con ese correo.'
+    );
+  }
+  if (parseInt(account.status, 10) !== constants.STATUS_ACTIVE) {
+    return reject(
+      ADMIN_LOGIN_ERROR.USER_INACTIVE,
+      'Tu cuenta está desactivada. Contacta a un administrador.'
+    );
+  }
+  if (!bcrypt.compareSync(password, account.password)) {
+    return reject(
+      ADMIN_LOGIN_ERROR.INVALID_PASSWORD,
+      'La contraseña es incorrecta.'
+    );
+  }
+
+  const memberships = await getAdminMembershipsByEmail({ email });
+  if (memberships.length === 0) {
+    return reject(
+      ADMIN_LOGIN_ERROR.NOT_ADMIN,
+      'Tu cuenta no tiene permisos de administrador.'
+    );
+  }
+
+  const superAdmin = findSuperAdminMembership(memberships);
+  if (superAdmin) {
+    return { validationObject: {}, errorMessage: '', errorCode: null, user: superAdmin };
+  }
+
+  const companyNames = describeMembershipCompanies(memberships);
+  const companyId = parseInt(company_id, 10);
+  if (!Number.isFinite(companyId) || companyId <= 0) {
+    return reject(
+      ADMIN_LOGIN_ERROR.COMPANY_REQUIRED,
+      companyNames
+        ? `Selecciona la empresa a la que perteneces. Tienes acceso a: ${companyNames}.`
+        : 'Selecciona la empresa a la que perteneces.'
+    );
+  }
+
+  const membership = findCompanyMembership(memberships, companyId);
+  if (!membership) {
+    const target = await knex('company').where({ id_company: companyId }).first();
+    const targetName = (target && target.name) || `la empresa ${companyId}`;
+    return reject(
+      ADMIN_LOGIN_ERROR.COMPANY_NOT_ASSIGNED,
+      companyNames
+        ? `No tienes acceso de administrador en ${targetName}. Tienes acceso a: ${companyNames}.`
+        : `No tienes acceso de administrador en ${targetName}.`
+    );
+  }
+
+  return { validationObject: {}, errorMessage: '', errorCode: null, user: membership };
+};
+
 const getUserById = async ({id_users}) => {
   return await knex('users')
   .where({ id_users, status:constants.STATUS_ACTIVE })
@@ -219,10 +377,10 @@ const validateUserLoginData = async ({email, password, isAdmin, company_id}) => 
       user = await getUserByEmailRolClient({email})
     }
     if(!user){
-      errorMessage=`El usuario con el email ingresado no existe en nuestros registros`;
+      errorMessage=`No existe una cuenta registrada con ese correo.`;
     } else {
       if(!bcrypt.compareSync(password, user.password)){
-        errorMessage ="Email o contraseña incorrectos."
+        errorMessage ="La contraseña es incorrecta."
       }
     }
     return {
@@ -377,7 +535,12 @@ const createUserLogic = async (
 
 }
 module.exports = { 
+  ADMIN_LOGIN_ERROR,
   getUserByEmail,
+  getUserByEmailAnyStatus,
+  getAdminMembershipsByEmail,
+  getAdminUserForSession,
+  resolveAdminLogin,
   createUser,
   getUsersByCompany,
   getUserByCompanyAndEmail,
