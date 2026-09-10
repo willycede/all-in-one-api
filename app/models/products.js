@@ -123,6 +123,10 @@ const getProductEditData = async (id_products) => {
 	const product = rows[0];
 	const feature = await getProductFeature(id_products);
 	product.id_category = feature ? feature.id_category : null;
+	// En datos legacy el catálogo vive en features.id_catalogo y products.id_cod_catalog queda null.
+	if (!product.id_cod_catalog && feature && feature.id_catalogo) {
+		product.id_cod_catalog = feature.id_catalogo;
+	}
 	product.images = await getListImagesByProductId(id_products);
 	product.modifiers = await productModifiersModel.getModifiersByProductId(id_products);
 	return product;
