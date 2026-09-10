@@ -214,10 +214,12 @@ const putProductsUpdate = async ({ body }, trx) => {
 		description: body.description,
 		price: body.price,
 		discount: body.discount,
-		id_cod_catalog: body.id_cod_catalog,
 		external_product_id: body.external_product_id || null,
 		updated_at: knex.fn.now(),
 	};
+	if (body.id_cod_catalog !== undefined && body.id_cod_catalog !== null) {
+		productUpdate.id_cod_catalog = body.id_cod_catalog;
+	}
 
 	if (body.allowed_cities !== undefined) {
 		productUpdate.allowed_cities = normalizeAllowedCities(body.allowed_cities);
@@ -236,8 +238,10 @@ const putProductsUpdate = async ({ body }, trx) => {
 		if (feature) {
 			const featureUpdate = {
 				id_category: body.id_category,
-				id_catalogo: body.id_cod_catalog,
 			};
+			if (body.id_cod_catalog !== undefined && body.id_cod_catalog !== null) {
+				featureUpdate.id_catalogo = body.id_cod_catalog;
+			}
 			await db('features')
 				.where({ id_products: body.id_products, status: generalConstants.STATUS_ACTIVE })
 				.update(featureUpdate);
