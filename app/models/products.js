@@ -192,13 +192,23 @@ const validateUpdateProduct = async ({ body }) => {
 	}
 
 	if (body.cod_products && body.id_products) {
-		const duplicate = await knex('products')
-			.where({ cod_products: body.cod_products, status: generalConstants.STATUS_ACTIVE })
-			.whereNot({ id_products: body.id_products })
+		const productId = parseInt(body.id_products, 10);
+		const codProducts = String(body.cod_products).trim();
+		const currentProduct = await knex('products')
+			.where({ id_products: productId })
 			.first();
-		if (duplicate) {
-			errorMessage = `El código ${duplicate.cod_products} ya está en uso por otro producto`;
-			validationObject.cod_products = errorMessage;
+		const skuUnchanged = currentProduct
+			&& String(currentProduct.cod_products).trim() === codProducts;
+
+		if (!skuUnchanged) {
+			const duplicate = await knex('products')
+				.where({ cod_products: codProducts, status: generalConstants.STATUS_ACTIVE })
+				.whereNot({ id_products: productId })
+				.first();
+			if (duplicate) {
+				errorMessage = `El código ${duplicate.cod_products} ya está en uso por otro producto`;
+				validationObject.cod_products = errorMessage;
+			}
 		}
 	}
 
